@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.kraken.com https://api.alternative.me https://api.coingecko.com https://gamma-api.polymarket.com https://data.messari.io">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="referrer" content="no-referrer">
+<title>INCENTIVES — Crypto Trading Game</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+// Load theme before render to prevent flash
+(function(){
+  var s=JSON.parse(localStorage.getItem('incentives-settings')||'{}');
+  var t=s.theme||'dark';
+  document.documentElement.className='theme-'+t;
+})();
+</script>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header id="top-bar">
+  <div class="top-left">
+    <div class="logo"><img src="logo.jpg" alt="Incentives" class="logo-img"> INCENTIVES</div>
+    <select id="market-selector">
+      <optgroup label="🪙 CRYPTO">
+        <option value="XETHZUSD" selected>⟠ ETH / USD</option>
+        <option value="XXBTZUSD">₿ BTC / USD</option>
+        <option value="SOLUSD">◎ SOL / USD</option>
+        <option value="XDGUSD">Ð DOGE / USD</option>
+        <option value="XXRPZUSD">✕ XRP / USD</option>
+        <option value="ADAUSD">₳ ADA / USD</option>
+        <option value="AVAXUSD">🔺 AVAX / USD</option>
+        <option value="LINKUSD">⬡ LINK / USD</option>
+      </optgroup>
+      <optgroup label="📈 STOCKS">
+        <option value="SIM_AAPL">🍎 AAPL / USD</option>
+        <option value="SIM_TSLA">⚡ TSLA / USD</option>
+        <option value="SIM_NVDA">🟢 NVDA / USD</option>
+        <option value="SIM_MSFT">🪟 MSFT / USD</option>
+        <option value="SIM_GOOGL">🔍 GOOGL / USD</option>
+        <option value="SIM_AMZN">📦 AMZN / USD</option>
+        <option value="SIM_META">Ⓜ️ META / USD</option>
+        <option value="SIM_AMD">🔴 AMD / USD</option>
+        <option value="SIM_INTC">🔵 INTC / USD</option>
+        <option value="SIM_NFLX">🎬 NFLX / USD</option>
+      </optgroup>
+      <optgroup label="🛢️ OIL &amp; GAS">
+        <option value="SIM_WTI">🛢️ WTI Crude / USD</option>
+        <option value="SIM_NATGAS">🔥 Natural Gas / USD</option>
+        <option value="SIM_BRENT">🛢️ Brent Oil / USD</option>
+        <option value="SIM_XOM">⛽ XOM / USD</option>
+        <option value="SIM_CVX">⛽ CVX / USD</option>
+        <option value="SIM_OXY">⛽ OXY / USD</option>
+      </optgroup>
+      <optgroup label="💎 INCENTIVES">
+        <option value="SIM_INCENTIVES">💎 INCENTIVES / USD</option>
+      </optgroup>
+    </select>
+    <span id="market-hours-note" class="hidden">🕐 Market Hours (24/7 in-game)</span>
+  </div>
+  <div class="top-center">
+    <button id="challenge-btn">🤖 CHALLENGE THE BOT</button>
+  </div>
+  <div class="top-right">
+    <!-- INCENTIVES Balance -->
+    <div id="incentives-balance" class="incentives-bal" onclick="TokenEconomy.toggleTransactions()">
+      <span class="incv-icon">💎</span>
+      <span id="incv-amount" class="mono">500</span>
+      <span class="incv-label">INCENTIVES</span>
+    </div>
+    <!-- Trophy / Achievements -->
+    <button id="trophy-btn" class="top-icon-btn" title="Achievements" onclick="TokenEconomy.toggleAchievements()">🏆</button>
+    <!-- Shop -->
+    <button id="shop-btn" class="top-icon-btn" title="Shop" onclick="TokenEconomy.toggleShop()">🛒</button>
+    <!-- Wallet -->
+    <div id="wallet-area">
+      <button id="connect-wallet-btn" onclick="TokenEconomy.toggleWallet()">🔗 Connect Wallet</button>
+      <div id="wallet-connected" class="hidden" onclick="TokenEconomy.toggleWalletDropdown()">
+        <span id="wallet-addr-short" class="mono"></span>
+        <span class="incv-icon">💎</span>
+        <span id="wallet-bal" class="mono"></span>
+      </div>
+      <!-- Wallet Dropdown -->
+      <div id="wallet-dropdown" class="hidden">
+        <div class="wd-row"><span class="wd-label">Address</span><span id="wd-full-addr" class="mono"></span></div>
+        <div class="wd-row"><span class="wd-label">INCENTIVES</span><span id="wd-incv-bal" class="mono"></span></div>
+        <div class="wd-row wd-link" onclick="TokenEconomy.toggleTransactions()">📜 Transaction History</div>
+        <div class="wd-row wd-link wd-disconnect" onclick="TokenEconomy.disconnectWallet()">🔌 Disconnect</div>
+      </div>
+    </div>
+    <button id="theme-cycle-btn" title="Switch Theme" onclick="cycleTheme()">🌙</button>
+    <button id="help-btn" class="top-icon-btn" title="Help Center" onclick="toggleHelpCenter()">❓</button>
+    <button id="settings-btn" title="Settings">⚙️</button>
+    <div class="account-stats">
+      <div class="stat"><span class="label">Balance</span><span id="balance" class="mono">$10,000.00</span></div>
+      <div class="stat"><span class="label">Portfolio</span><span id="portfolio" class="mono">$10,000.00</span></div>
+      <div class="stat"><span class="label">P/L</span><span id="pnl" class="mono pnl-zero">$0.00</span></div>
+    </div>
+    <div id="market-radio">
+      <div class="radio-antenna" id="radio-antenna"></div>
+      <span class="radio-icon" id="radio-icon">📻</span>
+      <button id="radio-toggle" class="radio-toggle-btn">OFF</button>
+      <input type="range" min="0" max="100" value="50" class="vol-slider" id="radio-vol">
+      <button id="radio-mute" class="sm-btn">🔊</button>
+      <div class="radio-ticker-wrap">
+        <div class="radio-ticker" id="radio-ticker">INCENTIVES MARKET RADIO — Tune in for live updates...</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- SETTINGS MODAL -->
+<div id="settings-overlay" class="hidden" onclick="closeSettings()">
+  <div id="settings-panel" onclick="event.stopPropagation()">
+    <div class="settings-header">
+      <h2>⚙️ Settings</h2>
+      <button class="settings-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="settings-body">
+
+      <div class="settings-section">
+        <h3>🎨 Appearance</h3>
+        <div class="setting-row">
+          <label>Theme</label>
+          <select id="set-theme">
+            <option value="dark">🌙 Dark</option>
+            <option value="light">☀️ Light</option>
+            <option value="telegram">💎 Telegram Blue</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label>Font Size</label>
+          <select id="set-fontsize">
+            <option value="small">Small</option>
+            <option value="medium" selected>Medium</option>
+            <option value="large">Large</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>📊 Chart</h3>
+        <div class="setting-row">
+          <label>Chart Type</label>
+          <select id="set-charttype">
+            <option value="candlestick">Candlestick</option>
+            <option value="line">Line</option>
+            <option value="area">Area</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label>Default Timeframe</label>
+          <select id="set-timeframe">
+            <option value="1">1m</option>
+            <option value="5">5m</option>
+            <option value="15" selected>15m</option>
+            <option value="60">1h</option>
+            <option value="240">4h</option>
+            <option value="1440">1D</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>🔔 Notifications & Sound</h3>
+        <div class="setting-row">
+          <label>Sound Effects</label>
+          <div class="toggle-switch" data-setting="soundEffects"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="setting-row">
+          <label>Notifications</label>
+          <div class="toggle-switch" data-setting="notifications"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="setting-row">
+          <label>Radio Auto-play</label>
+          <div class="toggle-switch" data-setting="radioAutoplay"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="setting-row">
+          <label>AI Mentor Voice</label>
+          <div class="toggle-switch" data-setting="mentorVoice"><div class="toggle-knob"></div></div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>💱 Trading</h3>
+        <div class="setting-row">
+          <label>Trade Confirmations</label>
+          <div class="toggle-switch active" data-setting="tradeConfirm"><div class="toggle-knob"></div></div>
+        </div>
+        <div class="setting-row">
+          <label>Currency Display</label>
+          <select id="set-currency">
+            <option value="USD">USD ($)</option>
+            <option value="EUR">EUR (€)</option>
+            <option value="GBP">GBP (£)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>🌐 Language</h3>
+        <div class="setting-row">
+          <label>Language</label>
+          <select id="set-language">
+            <option value="en">English</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>⌨️ Hotkeys</h3>
+        <div class="hotkeys-list">
+          <div class="hotkey-item"><kbd>B</kbd> Buy</div>
+          <div class="hotkey-item"><kbd>S</kbd> Sell</div>
+          <div class="hotkey-item"><kbd>Enter</kbd> Place Order</div>
+          <div class="hotkey-item"><kbd>1-6</kbd> Timeframes</div>
+          <div class="hotkey-item"><kbd>Esc</kbd> Close Modal</div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <h3>🔄 Reset</h3>
+        <button class="reset-btn" onclick="resetBalance()">Reset Balance to $10,000</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<main id="app">
+  <!-- CHART -->
+  <section id="chart-section">
+    <div id="timeframe-bar">
+      <button class="tf-btn" data-tf="1">1m</button>
+      <button class="tf-btn" data-tf="5">5m</button>
+      <button class="tf-btn active" data-tf="15">15m</button>
+      <button class="tf-btn" data-tf="60">1h</button>
+      <button class="tf-btn" data-tf="240">4h</button>
+      <button class="tf-btn" data-tf="1440">1D</button>
+      <span id="live-price" class="mono"></span>
+    </div>
+    <div id="chart-container"></div>
+  </section>
+
+  <!-- RIGHT PANEL -->
+  <aside id="right-panel">
+    <!-- ORDER PANEL -->
+    <div id="order-panel" class="panel">
+      <div class="panel-title">Place Order</div>
+      <div id="side-toggle">
+        <button id="buy-btn" class="side-btn active-buy">BUY</button>
+        <button id="sell-btn" class="side-btn">SELL</button>
+      </div>
+      <div id="order-type-bar">
+        <button class="ot-btn active" data-type="market">Market</button>
+        <button class="ot-btn" data-type="limit">Limit</button>
+        <button class="ot-btn" data-type="stop">Stop-Loss</button>
+      </div>
+      <div id="limit-price-row" class="hidden">
+        <label>Price (USD)</label>
+        <input type="number" id="limit-price" placeholder="0.00" step="0.01">
+      </div>
+      <div class="input-group">
+        <label>Amount (USD)</label>
+        <input type="number" id="order-usd" placeholder="0.00" step="0.01">
+      </div>
+      <div class="input-group">
+        <label id="order-asset-label">Amount (ETH)</label>
+        <input type="number" id="order-eth" placeholder="0.0000" step="0.0001">
+      </div>
+      <div id="pct-buttons">
+        <button class="pct-btn" data-pct="25">25%</button>
+        <button class="pct-btn" data-pct="50">50%</button>
+        <button class="pct-btn" data-pct="75">75%</button>
+        <button class="pct-btn" data-pct="100">100%</button>
+      </div>
+      <div class="input-group leverage-group">
+        <label>Leverage: <span id="lev-val">1x</span> <span class="disabled-tag">Coming Soon</span></label>
+        <input type="range" min="1" max="10" value="1" id="leverage" disabled>
+      </div>
+      <div id="fee-display" class="mono">Est. fee: $0.00</div>
+      <button id="place-order" class="primary-btn buy-color">BUY ETH</button>
+    </div>
+
+    <!-- BOTS PANEL -->
+    <div id="bots-panel" class="panel">
+      <div class="panel-title">Trading Bots</div>
+      <div id="bot-tabs">
+        <button class="bot-tab active" data-bot="grid">Grid Bot</button>
+        <button class="bot-tab" data-bot="dca">DCA Bot</button>
+        <button class="bot-tab" data-bot="custom">Custom</button>
+        <button class="bot-tab" data-bot="active">Active</button>
+      </div>
+      <div id="bot-grid" class="bot-form">
+        <div class="input-group"><label>Upper Price</label><input type="number" id="grid-upper" placeholder="0.00"></div>
+        <div class="input-group"><label>Lower Price</label><input type="number" id="grid-lower" placeholder="0.00"></div>
+        <div class="input-group"><label>Grid Count</label><input type="number" id="grid-count" value="10" min="2" max="100"></div>
+        <div class="input-group"><label>Investment (USD)</label><input type="number" id="grid-invest" placeholder="0.00"></div>
+        <button class="primary-btn" id="start-grid">Start Grid Bot</button>
+      </div>
+      <div id="bot-dca" class="bot-form hidden">
+        <div class="input-group"><label>Interval</label>
+          <select id="dca-interval"><option value="60">1 min</option><option value="300">5 min</option><option value="900">15 min</option><option value="3600">1 hour</option></select>
+        </div>
+        <div class="input-group"><label>Amount per Buy (USD)</label><input type="number" id="dca-amount" placeholder="0.00"></div>
+        <button class="primary-btn" id="start-dca">Start DCA Bot</button>
+      </div>
+      <div id="bot-custom" class="bot-form hidden">
+        <div class="input-group"><label>Strategy Name</label><input type="text" id="custom-name" placeholder="My Strategy"></div>
+        <div class="input-group"><label>Timeframe</label>
+          <select id="custom-tf"><option value="1m">1 min</option><option value="5m">5 min</option><option value="15m">15 min</option><option value="1h">1 hour</option><option value="4h">4 hour</option><option value="1d">1 day</option></select>
+        </div>
+        <div class="input-group"><label>Entry Indicator</label>
+          <select id="custom-entry-ind"><option value="RSI">RSI</option><option value="SMA_CROSS">SMA Cross</option><option value="MACD_CROSS">MACD Cross</option><option value="BOLLINGER">Bollinger Band</option><option value="PRICE_CHANGE">Price Change %</option></select>
+        </div>
+        <div class="input-group"><label>Entry Condition</label>
+          <select id="custom-entry-cond"><option value="below">Below</option><option value="above">Above</option><option value="crosses_above">Crosses Above</option><option value="crosses_below">Crosses Below</option></select>
+        </div>
+        <div class="input-group"><label>Entry Value</label><input type="number" id="custom-entry-val" value="30" step="0.1"></div>
+        <div class="input-group"><label>Exit Indicator</label>
+          <select id="custom-exit-ind"><option value="RSI">RSI</option><option value="SMA_CROSS">SMA Cross</option><option value="MACD_CROSS">MACD Cross</option><option value="BOLLINGER">Bollinger Band</option><option value="PRICE_CHANGE">Price Change %</option></select>
+        </div>
+        <div class="input-group"><label>Exit Condition</label>
+          <select id="custom-exit-cond"><option value="above">Above</option><option value="below">Below</option><option value="crosses_above">Crosses Above</option><option value="crosses_below">Crosses Below</option></select>
+        </div>
+        <div class="input-group"><label>Exit Value</label><input type="number" id="custom-exit-val" value="70" step="0.1"></div>
+        <div class="input-group"><label>Stop Loss %</label><input type="number" id="custom-sl" value="1" step="0.1" min="0.1" max="10"></div>
+        <div class="input-group"><label>Take Profit %</label><input type="number" id="custom-tp" value="2" step="0.1" min="0.1" max="20"></div>
+        <div class="input-group"><label>Position Size %</label><input type="number" id="custom-size" value="5" step="1" min="1" max="50"></div>
+        <button class="primary-btn" id="start-custom">Start Custom Bot</button>
+      </div>
+      <div id="bot-active" class="bot-form hidden">
+        <div id="active-bots-list"><p class="muted">No active bots</p></div>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- BOTTOM SECTION -->
+<section id="bottom-section">
+  <div id="history-panel">
+    <div id="history-tabs">
+      <button class="h-tab active" data-htab="open">Open Orders</button>
+      <button class="h-tab" data-htab="history">Trade History</button>
+      <button class="h-tab" data-htab="bottrades">Bot Trades</button>
+    </div>
+    <div id="history-content">
+      <table id="history-table">
+        <thead><tr><th>Time</th><th>Pair</th><th>Type</th><th>Price</th><th>Amount</th><th>Total</th><th>Status</th><th></th></tr></thead>
+        <tbody id="history-body"></tbody>
+      </table>
+      <p id="no-orders" class="muted">No orders yet</p>
+    </div>
+  </div>
+
+  <!-- AI MENTOR - NOVA -->
+  <div id="ai-mentor">
+    <div id="mentor-header" onclick="toggleMentor()">
+      <span class="mentor-header-left">
+        <span class="nova-avatar">🤖</span>
+        <span class="nova-name">Nova</span>
+        <span class="nova-status">AI Mentor</span>
+      </span>
+      <span id="mentor-toggle">▲</span>
+    </div>
+    <div id="mentor-body">
+      <div id="mentor-messages">
+        <!-- Messages populated by JS -->
+      </div>
+      <div id="mentor-typing" class="hidden">
+        <span class="nova-avatar-sm">🤖</span>
+        <div class="typing-indicator"><span></span><span></span><span></span></div>
+      </div>
+      <div id="mentor-quick-replies">
+        <button class="quick-reply-btn" data-query="market-analysis">📊 Market Analysis</button>
+        <button class="quick-reply-btn" data-query="trading-tips">💡 Trading Tips</button>
+        <button class="quick-reply-btn" data-query="explain-pl">📈 Explain My P/L</button>
+        <button class="quick-reply-btn" data-query="whats-hot">🔥 What's Hot?</button>
+      </div>
+      <div id="mentor-input-row">
+        <input type="text" id="mentor-input" placeholder="Ask Nova anything about trading...">
+        <button id="mentor-send" class="sm-btn" title="Send">➤</button>
+        <button id="mentor-voice" class="sm-btn" title="Voice (coming soon)">🎙</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CHALLENGE SETUP MODAL -->
+<div id="challenge-overlay" class="hidden">
+  <div class="challenge-modal" onclick="event.stopPropagation()">
+    <h2>🤖 Challenge the Bot</h2>
+    <p>Compete head-to-head against an AI trading bot!</p>
+    <div class="cm-field">
+      <label>Asset to Trade</label>
+      <select id="cm-asset"></select>
+    </div>
+    <div class="cm-field">
+      <label>Match Duration</label>
+      <div class="cm-duration-btns">
+        <button class="cm-dur" data-dur="300">5 min</button>
+        <button class="cm-dur active" data-dur="900">15 min</button>
+        <button class="cm-dur" data-dur="1800">30 min</button>
+        <button class="cm-dur" data-dur="3600">1 hour</button>
+      </div>
+    </div>
+    <div class="cm-field">
+      <label>Starting Balance: $10,000 each</label>
+    </div>
+    <div class="cm-field">
+      <label>Difficulty</label>
+      <div class="cm-diff-btns">
+        <button class="cm-diff" data-diff="easy">🟢 Easy</button>
+        <button class="cm-diff active" data-diff="medium">🟡 Medium</button>
+        <button class="cm-diff" data-diff="hard">🔴 Hard</button>
+      </div>
+    </div>
+    <div class="cm-diff-desc" id="cm-diff-desc">Bot uses grid + dip strategies, trades every 15-30s</div>
+    <button class="primary-btn cm-start" id="cm-start-btn" style="background:var(--accent);margin-top:16px">⚔️ START MATCH</button>
+    <button class="cm-cancel" onclick="closeChallengeModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- BOT VS PLAYER GAME VIEW -->
+<div id="game-view" class="hidden">
+  <!-- TOP SCOREBOARD -->
+  <div id="game-scorebar">
+    <div class="gs-player gs-left">
+      <span class="gs-label">👤 YOU</span>
+      <span class="gs-value" id="gs-player-val">$10,000.00</span>
+      <span class="gs-trades" id="gs-player-trades">0 trades</span>
+    </div>
+    <div class="gs-center">
+      <div class="gs-asset" id="gs-asset-name">⟠ ETH/USD</div>
+      <div class="gs-price" id="gs-live-price">$0.00</div>
+      <div class="gs-timer" id="gs-timer">15:00</div>
+      <div class="gs-winning" id="gs-winning">Match starting...</div>
+    </div>
+    <div class="gs-player gs-right">
+      <span class="gs-label">🤖 BOT</span>
+      <span class="gs-value" id="gs-bot-val">$10,000.00</span>
+      <span class="gs-trades" id="gs-bot-trades">0 trades</span>
+    </div>
+  </div>
+
+  <!-- SPLIT PANELS -->
+  <div id="game-panels">
+    <!-- PLAYER PANEL -->
+    <div class="gp-panel gp-player">
+      <div class="gp-header gp-header-player">👤 YOUR TRADES</div>
+      <div class="gp-chart" id="gp-player-chart"></div>
+      <div class="gp-stats">
+        <div class="gp-stat"><span>Balance</span><span id="gp-p-balance" class="mono">$10,000.00</span></div>
+        <div class="gp-stat"><span>Holdings</span><span id="gp-p-holdings" class="mono">0</span></div>
+        <div class="gp-stat"><span>P/L</span><span id="gp-p-pl" class="mono pnl-zero">$0.00</span></div>
+      </div>
+      <div class="gp-order-area">
+        <div class="gp-side-toggle">
+          <button class="gp-side-btn gp-buy-active" id="gp-buy-btn">BUY</button>
+          <button class="gp-side-btn" id="gp-sell-btn">SELL</button>
+        </div>
+        <div class="gp-order-types">
+          <button class="gp-ot active" data-type="market">Market</button>
+          <button class="gp-ot" data-type="limit">Limit</button>
+        </div>
+        <div class="gp-limit-row hidden" id="gp-limit-row">
+          <input type="number" id="gp-limit-price" placeholder="Limit price">
+        </div>
+        <div class="gp-amount-row">
+          <input type="number" id="gp-order-usd" placeholder="Amount (USD)">
+        </div>
+        <div class="gp-pct-btns">
+          <button class="gp-pct" data-pct="25">25%</button>
+          <button class="gp-pct" data-pct="50">50%</button>
+          <button class="gp-pct" data-pct="75">75%</button>
+          <button class="gp-pct" data-pct="100">100%</button>
+        </div>
+        <button class="primary-btn buy-color" id="gp-place-order">BUY</button>
+      </div>
+      <div class="gp-trades-log">
+        <div class="gp-trades-title">Your Trades</div>
+        <div id="gp-p-trades-list" class="gp-trades-list"></div>
+      </div>
+    </div>
+
+    <!-- DIVIDER -->
+    <div class="gp-divider"></div>
+
+    <!-- BOT PANEL -->
+    <div class="gp-panel gp-bot">
+      <div class="gp-header gp-header-bot">🤖 BOT TRADES</div>
+      <div class="gp-chart" id="gp-bot-chart"></div>
+      <div class="gp-stats">
+        <div class="gp-stat"><span>Balance</span><span id="gp-b-balance" class="mono">$10,000.00</span></div>
+        <div class="gp-stat"><span>Holdings</span><span id="gp-b-holdings" class="mono">0</span></div>
+        <div class="gp-stat"><span>P/L</span><span id="gp-b-pl" class="mono pnl-zero">$0.00</span></div>
+      </div>
+      <div class="gp-bot-strategy">
+        <div class="gp-strat-label">Current Strategy</div>
+        <div id="gp-bot-strategy-text" class="gp-strat-text">Waiting...</div>
+      </div>
+      <div class="gp-commentary">
+        <div class="gp-trades-title">🧠 Bot Commentary</div>
+        <div id="gp-bot-commentary" class="gp-trades-list"></div>
+      </div>
+      <div class="gp-trades-log">
+        <div class="gp-trades-title">Bot Trades</div>
+        <div id="gp-b-trades-list" class="gp-trades-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLOSE BUTTON -->
+  <button id="game-close-btn" onclick="exitGame()">✕ EXIT MATCH</button>
+</div>
+
+<!-- MATCH END MODAL -->
+<div id="match-end-overlay" class="hidden">
+  <div class="match-end-modal">
+    <div id="match-end-confetti"></div>
+    <h2 id="match-winner-text">🏆 YOU WIN!</h2>
+    <div class="match-end-scores">
+      <div class="me-score me-player">
+        <div class="me-label">👤 You</div>
+        <div class="me-val" id="me-player-val">$10,000.00</div>
+        <div class="me-pl" id="me-player-pl">+$0.00</div>
+      </div>
+      <div class="me-vs">VS</div>
+      <div class="me-score me-bot">
+        <div class="me-label">🤖 Bot</div>
+        <div class="me-val" id="me-bot-val">$10,000.00</div>
+        <div class="me-pl" id="me-bot-pl">+$0.00</div>
+      </div>
+    </div>
+    <div class="match-end-stats" id="match-end-stats"></div>
+    <div class="match-end-btns">
+      <button class="primary-btn" style="background:var(--accent)" onclick="playAgain()">🔄 PLAY AGAIN</button>
+      <button class="primary-btn" style="background:var(--bg3)" onclick="exitGame()">🏠 BACK TO MAIN</button>
+    </div>
+  </div>
+</div>
+
+<!-- ACHIEVEMENT POPUP CONTAINER -->
+<div id="achievement-popup-container"></div>
+
+<!-- ACHIEVEMENTS PANEL -->
+<div id="achievements-overlay" class="hidden" onclick="TokenEconomy.toggleAchievements()">
+  <div id="achievements-panel" onclick="event.stopPropagation()">
+    <div class="ap-header">
+      <h2>🏆 Achievements</h2>
+      <div class="ap-total">Total Earned: <span id="ap-total-earned" class="mono">0</span> 💎</div>
+      <button class="settings-close" onclick="TokenEconomy.toggleAchievements()">✕</button>
+    </div>
+    <div id="achievements-grid"></div>
+  </div>
+</div>
+
+<!-- SHOP MODAL -->
+<div id="shop-overlay" class="hidden" onclick="TokenEconomy.toggleShop()">
+  <div id="shop-panel" onclick="event.stopPropagation()">
+    <div class="ap-header">
+      <h2>🛒 Premium Shop</h2>
+      <div class="ap-total">Balance: <span id="shop-balance" class="mono">0</span> 💎</div>
+      <button class="settings-close" onclick="TokenEconomy.toggleShop()">✕</button>
+    </div>
+    <div id="shop-items"></div>
+  </div>
+</div>
+
+<!-- TRANSACTION HISTORY PANEL -->
+<div id="txn-overlay" class="hidden" onclick="TokenEconomy.toggleTransactions()">
+  <div id="txn-panel" onclick="event.stopPropagation()">
+    <div class="ap-header">
+      <h2>📜 Transaction History</h2>
+      <button class="settings-close" onclick="TokenEconomy.toggleTransactions()">✕</button>
+    </div>
+    <div id="txn-filters">
+      <button class="txn-filter active" data-filter="all" onclick="TokenEconomy.filterTxns('all',this)">All</button>
+      <button class="txn-filter" data-filter="earned" onclick="TokenEconomy.filterTxns('earned',this)">Earned</button>
+      <button class="txn-filter" data-filter="spent" onclick="TokenEconomy.filterTxns('spent',this)">Spent</button>
+    </div>
+    <div id="txn-list"></div>
+  </div>
+</div>
+
+<!-- HELP CENTER MODAL -->
+<div id="help-center" class="modal-overlay hidden" onclick="if(event.target===this)toggleHelpCenter()">
+  <div class="help-modal">
+    <div class="help-header">
+      <h2>❓ Help Center</h2>
+      <input type="text" id="help-search" placeholder="Search help..." oninput="filterHelp(this.value)">
+      <button class="settings-close" onclick="toggleHelpCenter()">✕</button>
+    </div>
+    <div class="help-content">
+      <div class="help-section" data-search="getting started first trade begin">
+        <h3>🚀 Getting Started</h3>
+        <p>Welcome to <strong>Incentives Crypto Games</strong> — a competitive trading game where you learn real trading skills!</p>
+        <ul>
+          <li><strong>Starting balance:</strong> $10,000 in game money to practice with</li>
+          <li><strong>Make a trade:</strong> Select a pair from the dropdown, set buy/sell, choose amount, click Place Order</li>
+          <li><strong>Chart:</strong> Shows live price action. Use timeframe buttons (1m, 5m, 15m, 1h, 4h, 1d)</li>
+          <li><strong>Trading bots:</strong> Set up Grid or DCA bots to trade automatically</li>
+          <li><strong>INCENTIVES tokens:</strong> Earn by learning, winning, and completing achievements</li>
+        </ul>
+      </div>
+      <div class="help-section" data-search="earn incentives tokens rewards achievements learn">
+        <h3>💰 How to Earn INCENTIVES</h3>
+        <p>You start with <strong>500 INCENTIVES</strong> as a welcome bonus. Earn more by:</p>
+        <table class="help-table">
+          <tr><th>Achievement</th><th>Reward</th></tr>
+          <tr><td>Place your first trade</td><td>+10 💎</td></tr>
+          <tr><td>Complete 5 trades</td><td>+25 💎</td></tr>
+          <tr><td>Complete 20 trades</td><td>+50 💎</td></tr>
+          <tr><td>Use all order types (market, limit, stop-loss)</td><td>+30 💎</td></tr>
+          <tr><td>Set up a trading bot</td><td>+20 💎</td></tr>
+          <tr><td>Ask the Mentor 10 questions</td><td>+15 💎</td></tr>
+          <tr><td>Play first bot challenge</td><td>+20 💎</td></tr>
+          <tr><td>Win first bot challenge</td><td>+50 💎</td></tr>
+          <tr><td>Beat bot on Easy</td><td>+25 💎</td></tr>
+          <tr><td>Beat bot on Medium</td><td>+75 💎</td></tr>
+          <tr><td>Beat bot on Hard</td><td>+200 💎</td></tr>
+        </table>
+        <p><strong>Bonus:</strong> First win each day = 2x rewards! Win by 10%+ margin = extra 50 💎</p>
+      </div>
+      <div class="help-section" data-search="competition multiplayer entry fee prize pool burn">
+        <h3>🏆 How Competitions Work</h3>
+        <ul>
+          <li><strong>Bot Challenge:</strong> Press "Challenge the Bot" — split screen, you vs AI. Beat it to earn INCENTIVES!</li>
+          <li><strong>Difficulty:</strong> Easy / Medium / Hard — harder = bigger rewards</li>
+          <li><strong>Entry Fees:</strong> Casual (50 💎) | Ranked (100 💎) | Tournament (250 💎)</li>
+          <li><strong>Prize Pool:</strong> Total entries × fee. Winners take 85% (5% burned 🔥, 10% platform fee)</li>
+          <li><strong>Tournament splits:</strong> 1st: 60% | 2nd: 25% | 3rd: 15%</li>
+          <li><strong>🔥 Burn Rate:</strong> 5% of every entry fee is permanently destroyed, reducing total supply over time</li>
+        </ul>
+        <p><strong>Total INCENTIVES Burned:</strong> <span id="total-burned" class="mono">0</span> 🔥</p>
+      </div>
+      <div class="help-section" data-search="wallet connect solana phantom">
+        <h3>🔗 Wallet Guide</h3>
+        <ul>
+          <li>Click <strong>"Connect Wallet"</strong> in the top bar</li>
+          <li>Supported wallets: Phantom, Solflare, Backpack</li>
+          <li>Once connected, your INCENTIVES balance syncs with your Solana wallet</li>
+          <li>Competition winnings are sent directly to your wallet</li>
+          <li>View your transactions in the wallet dropdown → Transaction History</li>
+        </ul>
+      </div>
+      <div class="help-section" data-search="trading basics market limit stop loss order">
+        <h3>📊 Trading Basics</h3>
+        <ul>
+          <li><strong>Market Order:</strong> Buy/sell immediately at current price</li>
+          <li><strong>Limit Order:</strong> Set a price — order fills when market reaches it</li>
+          <li><strong>Stop-Loss:</strong> Auto-sell if price drops to protect from big losses</li>
+          <li><strong>Candlestick Charts:</strong> Green = price went up, Red = price went down. Body = open/close, Wicks = high/low</li>
+          <li><strong>Grid Trading:</strong> Bot places buy orders below price and sell orders above, profiting from bounces</li>
+          <li><strong>Scalping:</strong> Quick trades capturing small price movements (0.5-2%)</li>
+          <li><strong>DCA (Dollar Cost Average):</strong> Buy fixed amounts at regular intervals to smooth out entry price</li>
+        </ul>
+      </div>
+      <div class="help-section" data-search="trading bots grid dca setup">
+        <h3>🤖 Trading Bots</h3>
+        <ul>
+          <li><strong>Grid Bot:</strong> Set upper/lower price range + number of grids. Bot auto-buys low, sells high within range</li>
+          <li><strong>DCA Bot:</strong> Set interval + amount. Bot buys automatically on schedule</li>
+          <li>View active bots and their P/L in the bots panel</li>
+          <li>Stop any bot anytime with the stop button</li>
+        </ul>
+      </div>
+      <div class="help-section" data-search="shop premium features unlock">
+        <h3>🛒 Premium Shop</h3>
+        <ul>
+          <li><strong>Advanced Indicators (200 💎):</strong> Unlock RSI, MACD, Bollinger Bands</li>
+          <li><strong>Extra Pairs (150 💎):</strong> Additional trading pairs</li>
+          <li><strong>Extreme Bot (500 💎):</strong> Hardest bot difficulty</li>
+          <li><strong>Neon Theme (100 💎):</strong> Cyberpunk-style theme</li>
+          <li><strong>Gold Theme (100 💎):</strong> Luxurious gold accents</li>
+        </ul>
+      </div>
+      <div class="help-section" data-search="ai mentor chat nova telegram voice">
+        <h3>🎓 AI Mentor (Nova)</h3>
+        <ul>
+          <li>Chat with <strong>Nova</strong> in the bottom-right chat box</li>
+          <li>Ask about any trading concept, market analysis, or game feature</li>
+          <li>Nova gives proactive tips when you trade or when markets move big</li>
+          <li>Quick buttons: Market Analysis, Trading Tips, Explain My P/L, What's Hot?</li>
+          <li><strong>Telegram:</strong> Connect on Telegram for mobile access — learn on the go!</li>
+          <li><strong>Voice:</strong> Coming soon!</li>
+        </ul>
+      </div>
+      <div class="help-section" data-search="faq questions answers">
+        <h3>❓ FAQ</h3>
+        <dl class="faq-list">
+          <dt>Is this real money?</dt>
+          <dd>No — game money ($10,000) is fake. But INCENTIVES tokens are real crypto on Solana.</dd>
+          <dt>How do I get more INCENTIVES?</dt>
+          <dd>Earn through achievements, winning bot challenges, and learning. Or buy on a Solana DEX.</dd>
+          <dt>Can I lose my INCENTIVES?</dt>
+          <dd>Only by entering competitions (entry fees) or buying shop items. You can't lose them from game trading.</dd>
+          <dt>Is the AI Mentor free?</dt>
+          <dd>Yes! Nova is free for all players, in-game and on Telegram.</dd>
+          <dt>What happens if I reset my balance?</dt>
+          <dd>Your game money resets to $10,000. Your INCENTIVES tokens stay.</dd>
+          <dt>What's the burn rate?</dt>
+          <dd>5% of every competition entry fee is permanently burned 🔥, reducing total supply over time.</dd>
+          <dt>Can I play without INCENTIVES?</dt>
+          <dd>Yes! Practice mode, learning, and bot challenges are free. Competitive multiplayer requires INCENTIVES.</dd>
+          <dt>Which wallets are supported?</dt>
+          <dd>Phantom, Solflare, and Backpack on Solana.</dd>
+          <dt>How do I earn the most INCENTIVES?</dt>
+          <dd>Beat the bot on Hard difficulty daily for 2x rewards + margin bonus.</dd>
+          <dt>Will there be multiplayer?</dt>
+          <dd>Yes! Leaderboards, 1v1, team battles, and 5-player co-op are coming soon.</dd>
+        </dl>
+      </div>
+      <div class="help-section" data-search="keyboard shortcuts hotkeys">
+        <h3>⌨️ Keyboard Shortcuts</h3>
+        <table class="help-table">
+          <tr><td><kbd>B</kbd></td><td>Switch to Buy</td></tr>
+          <tr><td><kbd>S</kbd></td><td>Switch to Sell</td></tr>
+          <tr><td><kbd>1-6</kbd></td><td>Change timeframe</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Close modals</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
