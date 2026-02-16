@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.kraken.com wss://ws.kraken.com https://api.alternative.me https://api.coingecko.com https://gamma-api.polymarket.com https://data.messari.io https://quote-api.jup.ag https://api.mainnet-beta.solana.com; child-src https://twitter.com https://www.facebook.com https://t.me https://github.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.kraken.com https://api.alternative.me https://api.coingecko.com https://gamma-api.polymarket.com https://data.messari.io">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta name="referrer" content="no-referrer">
 <title>INCENTIVES — Crypto Trading Game</title>
 <link rel="stylesheet" href="styles.css">
 <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
-<script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
 <script>
 // Load theme before render to prevent flash
 (function(){
@@ -93,7 +92,6 @@
       </div>
     </div>
     <button id="theme-cycle-btn" title="Switch Theme" onclick="cycleTheme()">🌙</button>
-    <button id="share-btn" class="top-icon-btn" title="Share" onclick="openShareModal('general')">📤</button>
     <button id="help-btn" class="top-icon-btn" title="Help Center" onclick="toggleHelpCenter()">❓</button>
     <button id="settings-btn" title="Settings">⚙️</button>
     <div class="account-stats">
@@ -101,7 +99,16 @@
       <div class="stat"><span class="label">Portfolio</span><span id="portfolio" class="mono">$10,000.00</span></div>
       <div class="stat"><span class="label">P/L</span><span id="pnl" class="mono pnl-zero">$0.00</span></div>
     </div>
-    <!-- Radio moved to floating button -->
+    <div id="market-radio">
+      <div class="radio-antenna" id="radio-antenna"></div>
+      <span class="radio-icon" id="radio-icon">📻</span>
+      <button id="radio-toggle" class="radio-toggle-btn">OFF</button>
+      <input type="range" min="0" max="100" value="50" class="vol-slider" id="radio-vol">
+      <button id="radio-mute" class="sm-btn">🔊</button>
+      <div class="radio-ticker-wrap">
+        <div class="radio-ticker" id="radio-ticker">INCENTIVES MARKET RADIO — Tune in for live updates...</div>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -293,7 +300,7 @@
         <div class="input-group"><label>Lower Price</label><input type="number" id="grid-lower" placeholder="0.00"></div>
         <div class="input-group"><label>Grid Count</label><input type="number" id="grid-count" value="10" min="2" max="100"></div>
         <div class="input-group"><label>Investment (USD)</label><input type="number" id="grid-invest" placeholder="0.00"></div>
-        <button class="primary-btn" id="start-grid" style="background:var(--accent);color:#fff">Start Grid Bot</button>
+        <button class="primary-btn" id="start-grid">Start Grid Bot</button>
       </div>
       <div id="bot-dca" class="bot-form hidden">
         <div class="input-group"><label>Interval</label>
@@ -426,7 +433,6 @@
       <span class="gs-label">👤 YOU</span>
       <span class="gs-value" id="gs-player-val">$10,000.00</span>
       <span class="gs-trades" id="gs-player-trades">0 trades</span>
-      <span class="gs-bots-val">🤖 Bots: <span id="gs-player-bots-val" class="mono">$0.00</span></span>
     </div>
     <div class="gs-center">
       <div class="gs-asset" id="gs-asset-name">⟠ ETH/USD</div>
@@ -438,7 +444,6 @@
       <span class="gs-label">🤖 BOT</span>
       <span class="gs-value" id="gs-bot-val">$10,000.00</span>
       <span class="gs-trades" id="gs-bot-trades">0 trades</span>
-      <span class="gs-bots-val">📊 P/L: <span id="gs-bot-bots-val" class="mono">$0.00</span></span>
     </div>
   </div>
 
@@ -453,227 +458,32 @@
         <div class="gp-stat"><span>Holdings</span><span id="gp-p-holdings" class="mono">0</span></div>
         <div class="gp-stat"><span>P/L</span><span id="gp-p-pl" class="mono pnl-zero">$0.00</span></div>
       </div>
-      <!-- Tabbed Interface -->
-      <div class="gp-tabs">
-        <button class="gp-tab active" data-gptab="trade">⚡ Trade</button>
-        <button class="gp-tab" data-gptab="bots">🤖 Bots</button>
-        <button class="gp-tab" data-gptab="portfolio">📊 Portfolio</button>
+      <div class="gp-order-area">
+        <div class="gp-side-toggle">
+          <button class="gp-side-btn gp-buy-active" id="gp-buy-btn">BUY</button>
+          <button class="gp-side-btn" id="gp-sell-btn">SELL</button>
+        </div>
+        <div class="gp-order-types">
+          <button class="gp-ot active" data-type="market">Market</button>
+          <button class="gp-ot" data-type="limit">Limit</button>
+        </div>
+        <div class="gp-limit-row hidden" id="gp-limit-row">
+          <input type="number" id="gp-limit-price" placeholder="Limit price">
+        </div>
+        <div class="gp-amount-row">
+          <input type="number" id="gp-order-usd" placeholder="Amount (USD)">
+        </div>
+        <div class="gp-pct-btns">
+          <button class="gp-pct" data-pct="25">25%</button>
+          <button class="gp-pct" data-pct="50">50%</button>
+          <button class="gp-pct" data-pct="75">75%</button>
+          <button class="gp-pct" data-pct="100">100%</button>
+        </div>
+        <button class="primary-btn buy-color" id="gp-place-order">BUY</button>
       </div>
-      <!-- Trade Tab -->
-      <div class="gp-tab-content" id="gp-tab-trade">
-        <div class="gp-order-area">
-          <div class="gp-side-toggle">
-            <button class="gp-side-btn gp-buy-active" id="gp-buy-btn">BUY</button>
-            <button class="gp-side-btn" id="gp-sell-btn">SELL</button>
-          </div>
-          <div class="gp-order-types">
-            <button class="gp-ot active" data-type="market">🔵 Market</button>
-            <button class="gp-ot" data-type="limit">🟡 Limit</button>
-            <button class="gp-ot" data-type="stop-loss">🔴 Stop-Loss</button>
-            <button class="gp-ot" data-type="take-profit">🟢 Take-Profit</button>
-            <button class="gp-ot" data-type="trailing-stop">🟠 Trailing Stop</button>
-          </div>
-          <div class="gp-limit-row hidden" id="gp-limit-row">
-            <input type="number" id="gp-limit-price" placeholder="Limit price">
-          </div>
-          <div class="gp-limit-row hidden" id="gp-stop-row">
-            <input type="number" id="gp-stop-price" placeholder="Stop price (triggers at this price)">
-          </div>
-          <div class="gp-limit-row hidden" id="gp-tp-row">
-            <input type="number" id="gp-tp-price" placeholder="Take-profit price">
-          </div>
-          <div class="gp-limit-row hidden" id="gp-trail-row">
-            <input type="number" id="gp-trail-pct" placeholder="Trail % (e.g. 1.5)" step="0.1" min="0.1" max="10">
-          </div>
-          <div class="gp-amount-row">
-            <input type="number" id="gp-order-usd" placeholder="Amount (USD)">
-          </div>
-          <div class="gp-pct-btns">
-            <button class="gp-pct" data-pct="25">25%</button>
-            <button class="gp-pct" data-pct="50">50%</button>
-            <button class="gp-pct" data-pct="75">75%</button>
-            <button class="gp-pct" data-pct="100">100%</button>
-          </div>
-          <button class="primary-btn buy-color" id="gp-place-order">BUY</button>
-        </div>
-        <div class="gp-trades-log">
-          <div class="gp-trades-title">Your Trades</div>
-          <div id="gp-p-trades-list" class="gp-trades-list"></div>
-        </div>
-      </div>
-      <!-- Bots Tab -->
-      <div class="gp-tab-content hidden" id="gp-tab-bots">
-        <div class="gp-player-bots">
-          <!-- Scalping Bot -->
-          <div class="gp-bot-card" id="pbot-scalp-card">
-            <div class="gp-bot-card-header">
-              <span class="gp-bot-card-icon">⚡</span>
-              <span class="gp-bot-card-name">Scalping Bot</span>
-              <label class="gp-bot-toggle">
-                <input type="checkbox" id="pbot-scalp-toggle">
-                <span class="gp-bot-toggle-slider"></span>
-              </label>
-            </div>
-            <div class="gp-bot-card-desc">Auto-trades small quick profits</div>
-            <div class="gp-bot-card-inputs">
-              <div class="gp-bot-input-row">
-                <label>Profit Target %</label>
-                <input type="number" id="pbot-scalp-profit" value="0.3" min="0.1" max="0.5" step="0.1">
-              </div>
-              <div class="gp-bot-input-row">
-                <label>Trade Size ($)</label>
-                <input type="number" id="pbot-scalp-size" value="200" min="50" max="2000" step="50">
-              </div>
-            </div>
-            <div class="gp-bot-card-status" id="pbot-scalp-status">💤 Idle</div>
-          </div>
-          <!-- Dip Buying Bot -->
-          <div class="gp-bot-card" id="pbot-dip-card">
-            <div class="gp-bot-card-header">
-              <span class="gp-bot-card-icon">📉</span>
-              <span class="gp-bot-card-name">Dip Buying Bot</span>
-              <label class="gp-bot-toggle">
-                <input type="checkbox" id="pbot-dip-toggle">
-                <span class="gp-bot-toggle-slider"></span>
-              </label>
-            </div>
-            <div class="gp-bot-card-desc">Buys dips, sells on recovery</div>
-            <div class="gp-bot-card-inputs">
-              <div class="gp-bot-input-row">
-                <label>Dip Threshold %</label>
-                <input type="number" id="pbot-dip-threshold" value="1.5" min="0.5" max="5" step="0.5">
-              </div>
-              <div class="gp-bot-input-row">
-                <label>Trade Size ($)</label>
-                <input type="number" id="pbot-dip-size" value="300" min="50" max="2000" step="50">
-              </div>
-            </div>
-            <div class="gp-bot-card-status" id="pbot-dip-status">💤 Idle</div>
-          </div>
-          <!-- Grid Bot -->
-          <div class="gp-bot-card" id="pbot-grid-card">
-            <div class="gp-bot-card-header">
-              <span class="gp-bot-card-icon">📊</span>
-              <span class="gp-bot-card-name">Grid Bot</span>
-              <label class="gp-bot-toggle">
-                <input type="checkbox" id="pbot-grid-toggle">
-                <span class="gp-bot-toggle-slider"></span>
-              </label>
-            </div>
-            <div class="gp-bot-card-desc">Auto buy low / sell high in range</div>
-            <div class="gp-bot-card-inputs">
-              <div class="gp-bot-input-row">
-                <label>Range % (from price)</label>
-                <input type="number" id="pbot-grid-range" value="2" min="0.5" max="10" step="0.5">
-              </div>
-              <div class="gp-bot-input-row">
-                <label>Trade Size ($)</label>
-                <input type="number" id="pbot-grid-size" value="250" min="50" max="2000" step="50">
-              </div>
-            </div>
-            <div class="gp-bot-card-status" id="pbot-grid-status">💤 Idle</div>
-          </div>
-          <!-- Deploy Real Agents Section -->
-          <div class="gp-deploy-section">
-            <div class="gp-deploy-header">
-              <h4>🚀 Deploy Real Trading Agents</h4>
-              <p>Turn game bots into real crypto traders</p>
-            </div>
-            <div class="gp-deploy-cards">
-              <div class="gp-deploy-card" data-bot="scalp">
-                <div class="gp-deploy-card-header">
-                  <span class="gp-deploy-icon">⚡</span>
-                  <div class="gp-deploy-info">
-                    <div class="gp-deploy-name">Scalping Agent</div>
-                    <div class="gp-deploy-record">Game Record: <span id="scalp-wins">0</span>W / <span id="scalp-losses">0</span>L</div>
-                  </div>
-                  <div class="gp-deploy-cost">1,000 💎</div>
-                </div>
-                <div class="gp-deploy-options">
-                  <label>Deploy with:</label>
-                  <select class="gp-deploy-amount">
-                    <option value="50">$50 (1,000 💎)</option>
-                    <option value="100">$100 (1,800 💎)</option>
-                    <option value="250">$250 (4,000 💎)</option>
-                    <option value="500">$500 (7,500 💎)</option>
-                  </select>
-                </div>
-                <button class="gp-deploy-btn" onclick="deployAgent('scalp')">🚀 Deploy Agent</button>
-                <div class="gp-deploy-status" id="scalp-agent-status">Not deployed</div>
-              </div>
-              
-              <div class="gp-deploy-card" data-bot="dip">
-                <div class="gp-deploy-card-header">
-                  <span class="gp-deploy-icon">📉</span>
-                  <div class="gp-deploy-info">
-                    <div class="gp-deploy-name">Dip Buying Agent</div>
-                    <div class="gp-deploy-record">Game Record: <span id="dip-wins">0</span>W / <span id="dip-losses">0</span>L</div>
-                  </div>
-                  <div class="gp-deploy-cost">1,200 💎</div>
-                </div>
-                <div class="gp-deploy-options">
-                  <label>Deploy with:</label>
-                  <select class="gp-deploy-amount">
-                    <option value="50">$50 (1,200 💎)</option>
-                    <option value="100">$100 (2,000 💎)</option>
-                    <option value="250">$250 (4,500 💎)</option>
-                    <option value="500">$500 (8,000 💎)</option>
-                  </select>
-                </div>
-                <button class="gp-deploy-btn" onclick="deployAgent('dip')">🚀 Deploy Agent</button>
-                <div class="gp-deploy-status" id="dip-agent-status">Not deployed</div>
-              </div>
-              
-              <div class="gp-deploy-card" data-bot="grid">
-                <div class="gp-deploy-card-header">
-                  <span class="gp-deploy-icon">📊</span>
-                  <div class="gp-deploy-info">
-                    <div class="gp-deploy-name">Grid Trading Agent</div>
-                    <div class="gp-deploy-record">Game Record: <span id="grid-wins">0</span>W / <span id="grid-losses">0</span>L</div>
-                  </div>
-                  <div class="gp-deploy-cost">1,500 💎</div>
-                </div>
-                <div class="gp-deploy-options">
-                  <label>Deploy with:</label>
-                  <select class="gp-deploy-amount">
-                    <option value="50">$50 (1,500 💎)</option>
-                    <option value="100">$100 (2,500 💎)</option>
-                    <option value="250">$250 (5,000 💎)</option>
-                    <option value="500">$500 (9,000 💎)</option>
-                  </select>
-                </div>
-                <button class="gp-deploy-btn" onclick="deployAgent('grid')">🚀 Deploy Agent</button>
-                <div class="gp-deploy-status" id="grid-agent-status">Not deployed</div>
-              </div>
-            </div>
-            <div class="gp-deploy-info-box">
-              <h5>💡 How it works:</h5>
-              <ul>
-                <li>Deploy agents with real crypto funds</li>
-                <li>Agents trade on Solana DEXs automatically</li>
-                <li>Monitor performance in real-time</li>
-                <li>Withdraw profits anytime</li>
-                <li>Better game performance = higher success rates</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Portfolio Tab -->
-      <div class="gp-tab-content hidden" id="gp-tab-portfolio">
-        <div class="gp-portfolio">
-          <div class="gp-portfolio-summary">
-            <div class="gp-port-row"><span>Starting Balance</span><span class="mono">$10,000.00</span></div>
-            <div class="gp-port-row"><span>Cash Balance</span><span class="mono" id="gp-port-cash">$10,000.00</span></div>
-            <div class="gp-port-row"><span>Holdings Value</span><span class="mono" id="gp-port-holdings">$0.00</span></div>
-            <div class="gp-port-row gp-port-total"><span>Total Value</span><span class="mono" id="gp-port-total">$10,000.00</span></div>
-            <div class="gp-port-row"><span>Total P/L</span><span class="mono" id="gp-port-pl">$0.00</span></div>
-          </div>
-          <div class="gp-trades-log">
-            <div class="gp-trades-title">All Trades (incl. bots)</div>
-            <div id="gp-port-trades-list" class="gp-trades-list"></div>
-          </div>
-        </div>
+      <div class="gp-trades-log">
+        <div class="gp-trades-title">Your Trades</div>
+        <div id="gp-p-trades-list" class="gp-trades-list"></div>
       </div>
     </div>
 
@@ -689,13 +499,9 @@
         <div class="gp-stat"><span>Holdings</span><span id="gp-b-holdings" class="mono">0</span></div>
         <div class="gp-stat"><span>P/L</span><span id="gp-b-pl" class="mono pnl-zero">$0.00</span></div>
       </div>
-      <div class="gp-bot-strategy" id="gp-bot-strategy-card">
-        <div class="gp-strat-indicator">
-          <div class="gp-strat-pulse"></div>
-          <div class="gp-strat-label">Current Strategy</div>
-        </div>
+      <div class="gp-bot-strategy">
+        <div class="gp-strat-label">Current Strategy</div>
         <div id="gp-bot-strategy-text" class="gp-strat-text">Waiting...</div>
-        <div id="gp-bot-strategy-detail" class="gp-strat-detail"></div>
       </div>
       <div class="gp-commentary">
         <div class="gp-trades-title">🧠 Bot Commentary</div>
@@ -708,133 +514,8 @@
     </div>
   </div>
 
-  <!-- NOVA GAME CHAT -->
-  <div id="nova-game-chat">
-    <div class="resize-handle-top" id="nova-game-resize"></div>
-    <div id="nova-game-header" onclick="toggleNovaGameChat()">
-      <span class="nova-game-header-left">
-        <span class="nova-avatar">🤖</span>
-        <span class="nova-name">Nova</span>
-        <span class="nova-status">Match Advisor</span>
-      </span>
-      <span id="nova-game-toggle">▲</span>
-    </div>
-    <div id="nova-game-body">
-      <div id="nova-game-messages"></div>
-      <div id="nova-game-quick">
-        <button class="nova-game-qr" data-q="how-am-i-doing">📊 How am I doing?</button>
-        <button class="nova-game-qr" data-q="what-bot-doing">🤖 What's the bot doing?</button>
-        <button class="nova-game-qr" data-q="tips-to-win">💡 Tips to win</button>
-        <button class="nova-game-qr" data-q="should-i-trade">📈 Should I buy/sell?</button>
-      </div>
-      <div id="nova-game-input-row">
-        <input type="text" id="nova-game-input" placeholder="Ask Nova about the match...">
-        <button id="nova-game-send" class="sm-btn">➤</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MATCH STATS TABLE -->
-  <div style="padding:12px 20px;border-top:1px solid var(--border);flex-shrink:0;background:var(--bg2)">
-    <h3 style="font-size:13px;color:var(--muted);margin-bottom:8px">📊 Match Statistics</h3>
-    <table style="width:100%;border-collapse:collapse;font-size:11px">
-      <thead><tr><th style="text-align:left;padding:4px 8px;color:var(--muted);border-bottom:1px solid var(--border)">Metric</th><th style="padding:4px 8px;color:#4aa3ff;border-bottom:1px solid var(--border)">You</th><th style="padding:4px 8px;color:#ff6b35;border-bottom:1px solid var(--border)">Bot</th></tr></thead>
-      <tbody>
-        <tr><td style="padding:4px 8px">Trades</td><td style="padding:4px 8px;text-align:center" id="ms-player-trades">0</td><td style="padding:4px 8px;text-align:center" id="ms-bot-trades">0</td></tr>
-        <tr><td style="padding:4px 8px">Avg Trade Size</td><td style="padding:4px 8px;text-align:center" id="ms-player-avg">$0</td><td style="padding:4px 8px;text-align:center" id="ms-bot-avg">$0</td></tr>
-        <tr><td style="padding:4px 8px">Holdings Value</td><td style="padding:4px 8px;text-align:center" id="ms-player-hold">$0</td><td style="padding:4px 8px;text-align:center" id="ms-bot-hold">$0</td></tr>
-      </tbody>
-    </table>
-  </div>
-
   <!-- CLOSE BUTTON -->
   <button id="game-close-btn" onclick="exitGame()">✕ EXIT MATCH</button>
-
-  <!-- ORDER FLOW ACADEMY -->
-  <div class="ofa-section" id="order-flow-academy">
-    <h2>📊 Order Flow Academy</h2>
-    <h3>🔍 What is Order Flow?</h3>
-    <ul class="ofa-intro">
-      <li>Order flow shows <strong>real-time buying and selling pressure</strong></li>
-      <li>It reveals who is buying (bulls 🐂) and who is selling (bears 🐻)</li>
-      <li>Unlike candlestick charts, order flow shows the <strong>VOLUME</strong> behind each price move</li>
-    </ul>
-
-    <h3>📚 Key Concepts</h3>
-    <div class="ofa-cards" id="ofa-concepts-grid">
-      <div class="ofa-card"><h4>1. Bid vs Ask</h4><p>Bids are buy orders waiting, Asks are sell orders waiting. The spread between them shows liquidity. Tight spreads = liquid market, wide spreads = illiquid.</p></div>
-      <div class="ofa-card"><h4>2. Market Orders vs Limit Orders</h4><p>Market orders hit immediately (aggressive), limit orders wait (passive). Aggressive buying = bullish signal. Aggressive selling = bearish signal.</p></div>
-      <div class="ofa-card"><h4>3. Volume Profile</h4><p>Shows how much volume traded at each price level. High volume = strong support/resistance. Low volume = price moves quickly through these areas.</p></div>
-      <div class="ofa-card"><h4>4. Delta (Buy-Sell Imbalance)</h4><p>Delta = Buy volume - Sell volume. Positive delta = more buyers, negative = more sellers. Large delta spikes signal aggressive directional moves.</p></div>
-      <div class="ofa-card"><h4>5. Footprint Charts</h4><p>Shows exact buy/sell volume at each price level within a candle. Reveals hidden buying/selling that regular charts can't show.</p></div>
-    </div>
-    <div class="ofa-cards">
-      <div class="ofa-card"><h4>6. Cumulative Delta</h4><p>Running total of delta over time. Rising = sustained buying pressure, falling = sustained selling. Divergence from price = potential reversal.</p></div>
-      <div class="ofa-card"><h4>7. Order Book Depth</h4><p>Visual representation of all pending orders. Large walls = potential support/resistance. But beware — walls can be spoofed!</p></div>
-      <div class="ofa-card"><h4>8. Absorption</h4><p>When large limit orders "absorb" aggressive market orders without price moving. Sign of strong support/resistance. Institutional players defending levels.</p></div>
-      <div class="ofa-card"><h4>9. Exhaustion</h4><p>When heavy buying fails to push price up (or heavy selling fails to push down). Classic reversal signal. Watch for exhaustion at key levels.</p></div>
-      <div class="ofa-card"><h4>10. Iceberg Orders</h4><p>Large hidden orders that only show small amounts. Institutional players use these to hide their true size. Detected by repeated fills at same price.</p></div>
-    </div>
-
-    <h3>📡 Live Order Flow Visualization</h3>
-    <div class="ofa-controls">
-      <label class="ofa-toggle-label">
-        <input type="checkbox" id="live-orderflow-toggle" onchange="toggleLiveOrderFlow(this.checked)">
-        <span class="ofa-toggle-slider"></span>
-        <span class="ofa-toggle-text">🌊 Connect to Live Kraken Data</span>
-      </label>
-      <div class="ofa-toggle-info">
-        <small>🟡 Demo: Simulated order flow • 🟢 Live: Real Kraken WebSocket data</small>
-      </div>
-    </div>
-    <div class="ofa-live-row">
-    <div class="ofa-ladder" id="ofa-ladder">
-      <div class="ofa-ladder-title">
-        <span>🟢 Bids (Buyers)</span>
-        <span>Price Ladder</span>
-        <span>🔴 Asks (Sellers)</span>
-      </div>
-      <div id="ofa-ladder-rows"></div>
-      <div class="ofa-delta-box" id="ofa-delta-box">
-        Delta: <span id="ofa-delta-val">0</span>
-      </div>
-    </div>
-
-    <div class="nova-academy-chat" id="nova-academy-chat">
-      <div class="nova-academy-header" onclick="toggleNovaAcademy()">
-        <span class="nova-game-header-left">
-          <span class="nova-avatar">🎓</span>
-          <span><span class="nova-name">Nova</span> <span class="nova-status">Academy Chat</span></span>
-        </span>
-        <span id="nova-academy-toggle">▲</span>
-      </div>
-      <div id="nova-academy-body">
-        <div id="nova-academy-messages" class="nova-academy-msgs">
-          <div class="mentor-msg bot">Welcome to the Order Flow Academy! 🎓 Ask me anything about order flow, indicators, reading the price ladder, or trading strategies. I remember what we've talked about in other chats too!</div>
-        </div>
-        <div class="nova-academy-quick">
-          <button class="nova-game-qr" onclick="sendNovaAcademyQuick('Explain delta')">📊 Explain Delta</button>
-          <button class="nova-game-qr" onclick="sendNovaAcademyQuick('How to read the ladder')">📡 Read Ladder</button>
-          <button class="nova-game-qr" onclick="sendNovaAcademyQuick('What is VWAP')">📈 What is VWAP</button>
-          <button class="nova-game-qr" onclick="sendNovaAcademyQuick('Best order flow strategy')">🎯 Best Strategy</button>
-        </div>
-        <div class="nova-academy-input-row">
-          <input type="text" id="nova-academy-input" placeholder="Ask about order flow...">
-          <button class="sm-btn" id="nova-academy-send">➤</button>
-        </div>
-      </div>
-    </div>
-    </div><!-- end ofa-live-row -->
-
-    <h3>📈 Key Indicators</h3>
-    <div class="ofa-cards">
-      <div class="ofa-card"><h4>VWAP (Volume Weighted Avg Price)</h4><p>Average price weighted by volume. Price above VWAP = bullish, below = bearish. Institutional benchmark — they aim to execute at or better than VWAP.</p></div>
-      <div class="ofa-card"><h4>CVD (Cumulative Volume Delta)</h4><p>Divergence between price and CVD signals potential reversals. Price rising + CVD falling = hidden selling. Price falling + CVD rising = hidden buying.</p></div>
-      <div class="ofa-card"><h4>POC (Point of Control)</h4><p>Price level with highest traded volume. Acts as a magnet for price. Price tends to revisit POC — powerful for mean-reversion strategies.</p></div>
-      <div class="ofa-card"><h4>Value Area (VA High/Low)</h4><p>Range where 70% of volume traded. Price outside VA = potential mean reversion back inside. Breakout from VA with volume = trend continuation.</p></div>
-      <div class="ofa-card"><h4>Imbalance Stacking</h4><p>Multiple consecutive price levels with buy/sell imbalance. Strong directional signal. 3+ stacked imbalances = high probability continuation.</p></div>
-    </div>
-  </div>
 </div>
 
 <!-- MATCH END MODAL -->
@@ -856,10 +537,6 @@
       </div>
     </div>
     <div class="match-end-stats" id="match-end-stats"></div>
-    <div class="match-end-share">
-      <button class="primary-btn share-match-btn" onclick="openShareModal('match')">📤 SHARE RESULT</button>
-      <button class="primary-btn challenge-friend-btn" onclick="openShareModal('challenge')">⚔️ CHALLENGE A FRIEND</button>
-    </div>
     <div class="match-end-btns">
       <button class="primary-btn" style="background:var(--accent)" onclick="playAgain()">🔄 PLAY AGAIN</button>
       <button class="primary-btn" style="background:var(--bg3)" onclick="exitGame()">🏠 BACK TO MAIN</button>
@@ -1051,111 +728,6 @@
   </div>
 </div>
 
-<!-- SHARE MODAL -->
-<div id="share-overlay" class="modal-overlay hidden" onclick="if(event.target===this)closeShareModal()">
-  <div class="share-modal" onclick="event.stopPropagation()">
-    <div class="share-header">
-      <h2 id="share-modal-title">📤 Share</h2>
-      <button class="settings-close" onclick="closeShareModal()">✕</button>
-    </div>
-    <div id="share-preview" class="share-preview"></div>
-    <div class="share-buttons">
-      <button class="share-platform-btn share-twitter" onclick="shareGame('twitter')">
-        <span class="share-icon">𝕏</span><span>Twitter / X</span>
-      </button>
-      <button class="share-platform-btn share-facebook" onclick="shareGame('facebook')">
-        <span class="share-icon">f</span><span>Facebook</span>
-      </button>
-      <button class="share-platform-btn share-telegram" onclick="shareGame('telegram')">
-        <span class="share-icon">✈</span><span>Telegram</span>
-      </button>
-      <button class="share-platform-btn share-discord" onclick="shareGame('discord')">
-        <span class="share-icon">🎮</span><span>Discord</span>
-      </button>
-      <button class="share-platform-btn share-snapchat" onclick="shareGame('snapchat')">
-        <span class="share-icon">👻</span><span>Snapchat</span>
-      </button>
-      <button class="share-platform-btn share-github" onclick="shareGame('github')">
-        <span class="share-icon">⚙</span><span>GitHub</span>
-      </button>
-    </div>
-    <div class="share-copy-row">
-      <input type="text" id="share-copy-text" readonly>
-      <button class="share-copy-btn" onclick="copyShareText()">📋 Copy</button>
-    </div>
-    <div id="share-toast" class="share-toast hidden">✅ Copied to clipboard!</div>
-  </div>
-</div>
-
-<!-- SECTION A: MARKET OVERVIEW -->
-<div class="page-section" id="market-overview-section">
-  <h2>📊 Market Overview</h2>
-  <div class="market-grid" id="market-overview-grid"></div>
-</div>
-
-<!-- SECTION B: PERFORMANCE STATS -->
-<div class="page-section" id="perf-stats-section">
-  <h2>📈 Performance Stats</h2>
-  <div class="stats-grid">
-    <div class="stat-card"><div class="sc-value" id="stat-total-trades">0</div><div class="sc-label">Total Trades</div></div>
-    <div class="stat-card"><div class="sc-value" id="stat-win-rate">0%</div><div class="sc-label">Win Rate</div></div>
-    <div class="stat-card"><div class="sc-value" id="stat-best-trade">$0.00</div><div class="sc-label">Best Trade</div></div>
-    <div class="stat-card"><div class="sc-value" id="stat-total-pl">$0.00</div><div class="sc-label">Total P/L</div></div>
-  </div>
-</div>
-
-<!-- SECTION C: LEADERBOARD -->
-<div class="page-section" id="leaderboard-section">
-  <h2>🏆 Leaderboard</h2>
-  <div class="leaderboard-placeholder">
-    <p style="font-size:24px;margin-bottom:8px">🏆</p>
-    <p>Leaderboard coming soon!</p>
-    <p style="font-size:11px;margin-top:4px">Compete against other players and climb the ranks.</p>
-  </div>
-</div>
-
-<!-- SECTION D: TRADING ACADEMY -->
-<div class="page-section" id="academy-section">
-  <h2>🎓 Trading Academy</h2>
-  <div class="tip-grid">
-    <div class="tip-card"><h3>📉 Buy the Dip</h3><p>When prices drop sharply, it can be a buying opportunity. Use limit orders below market price and let the market come to you.</p></div>
-    <div class="tip-card"><h3>🛡️ Risk Management</h3><p>Never risk more than 2-5% of your portfolio on a single trade. Always use stop-loss orders to protect your downside.</p></div>
-    <div class="tip-card"><h3>📊 Read the Chart</h3><p>Candlestick patterns tell a story. Green candles = bullish, red = bearish. Long wicks show rejection. Learn to spot support & resistance.</p></div>
-    <div class="tip-card"><h3>🤖 Use Bots Wisely</h3><p>Grid bots work best in ranging markets. DCA bots smooth out entry prices over time. Don't set and forget — monitor performance.</p></div>
-  </div>
-</div>
-
-<!-- FLOATING RADIO BUTTON -->
-<div id="radio-float-btn" onclick="toggleRadioPopup()" title="Market Radio">📻</div>
-<div id="radio-popup" class="hidden">
-  <div class="radio-popup-header">
-    <span>📻 Market Radio</span>
-    <button class="radio-popup-close" onclick="toggleRadioPopup()">✕</button>
-  </div>
-  <div class="radio-popup-controls">
-    <div class="radio-popup-row">
-      <span>Power</span>
-      <button id="radio-toggle" class="radio-toggle-btn" onclick="toggleRadio()">OFF</button>
-    </div>
-    <div class="radio-popup-row">
-      <span>Volume</span>
-      <input type="range" min="0" max="100" value="50" class="vol-slider" id="radio-vol">
-      <button id="radio-mute" class="sm-btn">🔊</button>
-    </div>
-  </div>
-  <div class="radio-ticker-wrap" id="market-radio">
-    <div class="radio-ticker" id="radio-ticker">INCENTIVES MARKET RADIO — Tune in for live updates...</div>
-  </div>
-  <button class="radio-news-btn" onclick="openNewsModal()">📰 News</button>
-</div>
-
 <script src="app.js"></script>
-<script>
-// Radio popup toggle
-function toggleRadioPopup() {
-  document.getElementById('radio-popup').classList.toggle('hidden');
-  document.getElementById('radio-float-btn').classList.toggle('radio-active');
-}
-</script>
 </body>
 </html>
