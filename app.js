@@ -1376,6 +1376,15 @@ async function init() {
   updateBotUI();
   updateDeployedAgentsUI();
   
+  // Initialize live order flow toggle and connection
+  const toggleEl = document.getElementById('live-orderflow-toggle');
+  if (toggleEl) {
+    toggleEl.checked = LIVE_ORDER_FLOW.useRealData;
+    if (LIVE_ORDER_FLOW.useRealData) {
+      initLiveOrderFlow();
+    }
+  }
+  
   // Start mock trading for any existing deployed agents
   Object.keys(DEPLOYED_AGENTS).forEach(botType => {
     if (DEPLOYED_AGENTS[botType].status === 'active') {
@@ -2296,34 +2305,65 @@ function playerScalpTick() {
   bot.priceHistory.push(price);
   if (bot.priceHistory.length > 20) bot.priceHistory.shift();
 
+  // Get order flow advice for smarter trading
+  const orderFlowAdvice = getBotOrderFlowAdvice(price);
+
   if (bot.holding > 0 && bot.lastBuyPrice > 0) {
     const gain = (price - bot.lastBuyPrice) / bot.lastBuyPrice * 100;
-    if (gain >= profitTarget) {
+    
+    // Take profit - enhanced with order flow
+    if (gain >= profitTarget || (orderFlowAdvice.action === 'sell' && orderFlowAdvice.confidence >= 6)) {
       const usd = bot.holding * price;
       if (playerBotTrade('sell', usd, 'Scalping')) {
         bot.holding = 0;
         bot.lastBuyPrice = 0;
         bot.trades++;
-        updatePlayerBotStatus('scalp', `🟢 Trading (${bot.trades} trades)`);
+        const reason = orderFlowAdvice.action === 'sell' ? ' (Order flow: bearish)' : '';
+        updatePlayerBotStatus('scalp', `🟢 Sold +${gain.toFixed(2)}%${reason}`);
       }
-    } else if (gain < -0.8) {
+    } 
+    // Stop loss - tighter with order flow confirmation
+    else if (gain < -0.8 || (gain < -0.3 && orderFlowAdvice.action === 'sell' && orderFlowAdvice.confidence >= 7)) {
       const usd = bot.holding * price;
       if (playerBotTrade('sell', usd, 'Scalping')) {
         bot.holding = 0;
         bot.lastBuyPrice = 0;
         bot.trades++;
+        updatePlayerBotStatus('scalp', `🔴 Stop loss ${gain.toFixed(2)}%`);
       }
     }
-  } else if (bot.priceHistory.length >= 2 && GAME.player.balance >= tradeSize) {
-    // Buy on any flat or small dip from previous tick
-    const prev = bot.priceHistory[bot.priceHistory.length - 2];
-    const change = (price - prev) / prev * 100;
-    if (change <= 0.05) {
-      if (playerBotTrade('buy', tradeSize, 'Scalping')) {
-        bot.holding = tradeSize / price;
+  } else if (GAME.player.balance >= tradeSize) {
+    let shouldBuy = false;
+    let reason = '';
+
+    // Traditional scalp signal (price stability)
+    if (bot.priceHistory.length >= 3) {
+      const recent = bot.priceHistory.slice(-3);
+      const volatility = Math.max(...recent) - Math.min(...recent);
+      const avgPrice = recent.reduce((a, b) => a + b) / recent.length;
+      const volPct = (volatility / avgPrice) * 100;
+      
+      if (volPct < 0.3) { // Low volatility = good for scalping
+        shouldBuy = true;
+        reason = 'Low volatility detected';
+      }
+    }
+    
+    // Override with order flow signals (higher priority)
+    if (orderFlowAdvice.confidence >= 7) {
+      shouldBuy = orderFlowAdvice.action === 'buy';
+      reason = shouldBuy ? orderFlowAdvice.reason : 'Order flow bearish';
+    }
+
+    if (shouldBuy) {
+      const finalSize = orderFlowAdvice.suggestedSize && orderFlowAdvice.confidence >= 8 ? 
+        Math.min(orderFlowAdvice.suggestedSize, tradeSize * 1.5) : tradeSize;
+        
+      if (playerBotTrade('buy', finalSize, 'Scalping')) {
+        bot.holding = finalSize / price;
         bot.lastBuyPrice = price;
         bot.trades++;
-        updatePlayerBotStatus('scalp', `🟢 Trading (${bot.trades} trades)`);
+        updatePlayerBotStatus('scalp', `🟢 Bought: ${reason}`);
       }
     }
   }
@@ -2338,28 +2378,82 @@ function playerDipTick() {
   const tradeSize = parseFloat(document.getElementById('pbot-dip-size').value) || 300;
 
   if (price > bot.recentHigh) bot.recentHigh = price;
-
   const dipPct = (bot.recentHigh - price) / bot.recentHigh * 100;
+
+  // Get order flow advice for timing entries and exits
+  const orderFlowAdvice = getBotOrderFlowAdvice(price);
 
   if (bot.holding > 0) {
     const gain = (price - bot.buyPrice) / bot.buyPrice * 100;
-    if (gain >= threshold * 0.4 || gain < -(threshold * 1.5)) {
+    let shouldSell = false;
+    let reason = '';
+
+    // Traditional exit rules
+    if (gain >= threshold * 0.4) {
+      shouldSell = true;
+      reason = `Profit target hit (+${gain.toFixed(2)}%)`;
+    } else if (gain < -(threshold * 1.5)) {
+      shouldSell = true;
+      reason = `Stop loss hit (${gain.toFixed(2)}%)`;
+    }
+    
+    // Order flow enhanced exit
+    if (orderFlowAdvice.action === 'sell' && orderFlowAdvice.confidence >= 8) {
+      shouldSell = true;
+      reason = `Order flow exit: ${orderFlowAdvice.reason}`;
+    } else if (orderFlowAdvice.action === 'buy' && orderFlowAdvice.confidence >= 8 && gain > threshold * 0.2) {
+      // Strong buy pressure = hold longer for bigger gains
+      shouldSell = false;
+    }
+
+    if (shouldSell) {
       const usd = bot.holding * price;
       if (playerBotTrade('sell', usd, 'Dip Buying')) {
         bot.holding = 0;
         bot.buyPrice = 0;
-        bot.recentHigh = price;
+        bot.recentHigh = Math.max(price, bot.recentHigh * 0.98); // Slight reset
         bot.trades++;
-        updatePlayerBotStatus('dip', `🟢 Active (${bot.trades} trades)`);
+        updatePlayerBotStatus('dip', `🟢 ${reason}`);
       }
     }
-  } else if (dipPct >= threshold * 0.5 && GAME.player.balance >= tradeSize) {
-    // Buy when price dips from recent high (lowered threshold for more action)
-    if (playerBotTrade('buy', tradeSize, 'Dip Buying')) {
-      bot.holding = tradeSize / price;
-      bot.buyPrice = price;
-      bot.trades++;
-      updatePlayerBotStatus('dip', `🟢 Bought dip! (${bot.trades} trades)`);
+  } else if (GAME.player.balance >= tradeSize) {
+    let shouldBuy = false;
+    let reason = '';
+    
+    // Traditional dip detection
+    if (dipPct >= threshold * 0.5) {
+      shouldBuy = true;
+      reason = `Dip detected: -${dipPct.toFixed(2)}%`;
+    }
+    
+    // Order flow enhanced entry timing
+    if (dipPct >= threshold * 0.3 && orderFlowAdvice.action === 'buy' && orderFlowAdvice.confidence >= 7) {
+      shouldBuy = true;
+      reason = `Order flow dip buy: ${orderFlowAdvice.reason}`;
+    } else if (orderFlowAdvice.action === 'sell' && orderFlowAdvice.confidence >= 8) {
+      // Strong selling pressure = wait for better dip
+      shouldBuy = false;
+      reason = 'Waiting - strong selling pressure';
+    }
+    
+    // Look for absorption at key levels
+    if (dipPct >= threshold && orderFlowAdvice.reason?.includes('absorption')) {
+      shouldBuy = true;
+      reason = 'Absorption detected at dip level';
+    }
+
+    if (shouldBuy) {
+      const finalSize = orderFlowAdvice.suggestedSize && orderFlowAdvice.confidence >= 8 ? 
+        Math.min(orderFlowAdvice.suggestedSize, tradeSize * 1.3) : tradeSize;
+        
+      if (playerBotTrade('buy', finalSize, 'Dip Buying')) {
+        bot.holding = finalSize / price;
+        bot.buyPrice = price;
+        bot.trades++;
+        updatePlayerBotStatus('dip', `🟢 ${reason}`);
+      }
+    } else if (reason) {
+      updatePlayerBotStatus('dip', `🟡 ${reason}`);
     }
   }
 }
@@ -2658,8 +2752,181 @@ function getMentorGameResponse(text) {
 }
 
 // === ORDER FLOW VISUALIZATION ===
+// === REAL-TIME ORDER FLOW SYSTEM ===
+const LIVE_ORDER_FLOW = {
+  ws: null,
+  orderBook: { bids: [], asks: [] },
+  isConnected: false,
+  currentSymbol: 'XETHZUSD',
+  useRealData: localStorage.getItem('incentives-live-orderflow') === 'true'
+};
+
+function initLiveOrderFlow() {
+  if (!LIVE_ORDER_FLOW.useRealData) return;
+  
+  console.log('🌊 Initializing live order flow connection...');
+  
+  try {
+    LIVE_ORDER_FLOW.ws = new WebSocket('wss://ws.kraken.com');
+    
+    LIVE_ORDER_FLOW.ws.onopen = () => {
+      console.log('✅ Kraken WebSocket connected');
+      LIVE_ORDER_FLOW.isConnected = true;
+      
+      // Subscribe to order book for current trading pair
+      const subscription = {
+        event: 'subscribe',
+        pair: [LIVE_ORDER_FLOW.currentSymbol],
+        subscription: { name: 'book', depth: 25 }
+      };
+      LIVE_ORDER_FLOW.ws.send(JSON.stringify(subscription));
+      showNotification('🌊 Live order flow connected!', 'success');
+    };
+    
+    LIVE_ORDER_FLOW.ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        // Handle order book snapshots and updates
+        if (Array.isArray(data) && data.length >= 4) {
+          const [channelID, orderBookData] = data;
+          
+          if (orderBookData && (orderBookData.bs || orderBookData.as || orderBookData.b || orderBookData.a)) {
+            // Initial snapshot (bs = bid snapshot, as = ask snapshot)
+            if (orderBookData.bs && orderBookData.as) {
+              LIVE_ORDER_FLOW.orderBook.bids = parseOrderBookSide(orderBookData.bs);
+              LIVE_ORDER_FLOW.orderBook.asks = parseOrderBookSide(orderBookData.as);
+            }
+            // Updates (b = bid updates, a = ask updates)
+            else {
+              if (orderBookData.b) {
+                updateOrderBookSide(LIVE_ORDER_FLOW.orderBook.bids, parseOrderBookSide(orderBookData.b), 'bids');
+              }
+              if (orderBookData.a) {
+                updateOrderBookSide(LIVE_ORDER_FLOW.orderBook.asks, parseOrderBookSide(orderBookData.a), 'asks');
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Order flow WebSocket parse error:', error);
+      }
+    };
+    
+    LIVE_ORDER_FLOW.ws.onclose = () => {
+      console.log('❌ Kraken WebSocket disconnected');
+      LIVE_ORDER_FLOW.isConnected = false;
+      // Attempt to reconnect after 5 seconds
+      setTimeout(() => {
+        if (LIVE_ORDER_FLOW.useRealData) {
+          initLiveOrderFlow();
+        }
+      }, 5000);
+    };
+    
+    LIVE_ORDER_FLOW.ws.onerror = (error) => {
+      console.error('Kraken WebSocket error:', error);
+      LIVE_ORDER_FLOW.isConnected = false;
+    };
+    
+  } catch (error) {
+    console.error('Failed to initialize live order flow:', error);
+    LIVE_ORDER_FLOW.useRealData = false;
+  }
+}
+
+function parseOrderBookSide(sideData) {
+  return sideData.map(level => ({
+    price: parseFloat(level[0]),
+    volume: parseFloat(level[1]),
+    timestamp: level[2] ? parseFloat(level[2]) : Date.now() / 1000
+  })).sort((a, b) => b.price - a.price); // Sort bids descending
+}
+
+function updateOrderBookSide(currentSide, updates, type) {
+  for (const update of updates) {
+    const price = update.price;
+    const volume = update.volume;
+    
+    const existingIndex = currentSide.findIndex(level => level.price === price);
+    
+    if (volume === 0) {
+      // Remove level if volume is 0
+      if (existingIndex !== -1) {
+        currentSide.splice(existingIndex, 1);
+      }
+    } else {
+      // Add or update level
+      if (existingIndex !== -1) {
+        currentSide[existingIndex] = update;
+      } else {
+        currentSide.push(update);
+        // Keep sorted (bids descending, asks ascending)
+        currentSide.sort((a, b) => type === 'bids' ? b.price - a.price : a.price - b.price);
+      }
+    }
+  }
+  
+  // Keep only top 25 levels
+  if (currentSide.length > 25) {
+    currentSide.length = 25;
+  }
+}
+
 function generateOrderFlowData(price) {
   if (!price || price <= 0) return [];
+  
+  // Use live data if available and connected
+  if (LIVE_ORDER_FLOW.useRealData && LIVE_ORDER_FLOW.isConnected && 
+      LIVE_ORDER_FLOW.orderBook.bids.length > 0 && LIVE_ORDER_FLOW.orderBook.asks.length > 0) {
+    
+    return generateRealOrderFlowData(price);
+  }
+  
+  // Fallback to mock data
+  return generateMockOrderFlowData(price);
+}
+
+function generateRealOrderFlowData(currentPrice) {
+  const levels = [];
+  const { bids, asks } = LIVE_ORDER_FLOW.orderBook;
+  
+  // Combine and create levels around current price
+  const priceRange = currentPrice * 0.02; // 2% range
+  const minPrice = currentPrice - priceRange;
+  const maxPrice = currentPrice + priceRange;
+  
+  // Get relevant bids and asks within range
+  const relevantBids = bids.filter(bid => bid.price >= minPrice && bid.price <= currentPrice);
+  const relevantAsks = asks.filter(ask => ask.price >= currentPrice && ask.price <= maxPrice);
+  
+  // Create price levels
+  const allPrices = new Set();
+  relevantBids.forEach(bid => allPrices.add(bid.price));
+  relevantAsks.forEach(ask => allPrices.add(ask.price));
+  
+  // Add current price if not present
+  allPrices.add(currentPrice);
+  
+  const sortedPrices = Array.from(allPrices).sort((a, b) => b - a);
+  
+  for (const levelPrice of sortedPrices.slice(0, 15)) {
+    const bid = relevantBids.find(b => b.price === levelPrice);
+    const ask = relevantAsks.find(a => a.price === levelPrice);
+    
+    levels.push({
+      price: levelPrice,
+      bid: bid ? Math.floor(bid.volume * 1000) : 0, // Convert to smaller units for display
+      ask: ask ? Math.floor(ask.volume * 1000) : 0,
+      isCurrent: Math.abs(levelPrice - currentPrice) < currentPrice * 0.001,
+      isReal: true
+    });
+  }
+  
+  return levels.length > 0 ? levels : generateMockOrderFlowData(currentPrice);
+}
+
+function generateMockOrderFlowData(price) {
   const levels = [];
   const info = PAIRS[GAME.pair];
   const step = price * 0.002; // 0.2% per level
@@ -2671,9 +2938,58 @@ function generateOrderFlowData(price) {
     // Bias: more bids below, more asks above
     const bid = i <= 0 ? baseBid * (1 + Math.random()) : baseBid * 0.5;
     const ask = i >= 0 ? baseAsk * (1 + Math.random()) : baseAsk * 0.5;
-    levels.push({ price: lvlPrice, bid: Math.floor(bid), ask: Math.floor(ask), isCurrent: i === 0 });
+    levels.push({ 
+      price: lvlPrice, 
+      bid: Math.floor(bid), 
+      ask: Math.floor(ask), 
+      isCurrent: i === 0,
+      isReal: false
+    });
   }
   return levels;
+}
+
+function getOrderFlowSignals() {
+  if (!LIVE_ORDER_FLOW.isConnected || !LIVE_ORDER_FLOW.orderBook.bids.length) {
+    return { signal: 'neutral', strength: 0, reason: 'No live data' };
+  }
+  
+  const { bids, asks } = LIVE_ORDER_FLOW.orderBook;
+  const topBids = bids.slice(0, 5);
+  const topAsks = asks.slice(0, 5);
+  
+  const bidVolume = topBids.reduce((sum, bid) => sum + bid.volume, 0);
+  const askVolume = topAsks.reduce((sum, ask) => sum + ask.volume, 0);
+  
+  const imbalance = bidVolume / (bidVolume + askVolume);
+  const spread = asks[0] ? asks[0].price - bids[0].price : 0;
+  const midPrice = asks[0] && bids[0] ? (asks[0].price + bids[0].price) / 2 : 0;
+  
+  let signal = 'neutral';
+  let strength = 0;
+  let reason = '';
+  
+  // Detect order flow signals
+  if (imbalance > 0.7) {
+    signal = 'bullish';
+    strength = Math.min(10, (imbalance - 0.5) * 20);
+    reason = `Heavy bid pressure (${(imbalance * 100).toFixed(0)}% bids)`;
+  } else if (imbalance < 0.3) {
+    signal = 'bearish';
+    strength = Math.min(10, (0.5 - imbalance) * 20);
+    reason = `Heavy ask pressure (${((1 - imbalance) * 100).toFixed(0)}% asks)`;
+  }
+  
+  // Factor in spread tightness
+  if (spread > 0) {
+    const spreadPercent = (spread / midPrice) * 100;
+    if (spreadPercent < 0.05) {
+      strength += 2; // Tight spread = more conviction
+      reason += ' + tight spread';
+    }
+  }
+  
+  return { signal, strength: Math.round(strength), reason, imbalance, spread };
 }
 
 function updateOrderFlowDisplay() {
@@ -2687,22 +3003,121 @@ function updateOrderFlowDisplay() {
   const maxVol = Math.max(...levels.map(l => Math.max(l.bid, l.ask)), 1);
   let totalDelta = 0;
   let html = '';
+  
+  // Add header showing data source
+  const isLive = levels.length > 0 && levels[0].isReal;
+  const statusIcon = isLive ? '🟢 LIVE' : '🟡 DEMO';
+  const statusHTML = `<div class="ofa-status">${statusIcon} ${isLive ? 'Kraken WebSocket' : 'Simulated Data'}</div>`;
+  
   for (const l of levels.reverse()) {
     totalDelta += l.bid - l.ask;
     const bidPct = (l.bid / maxVol * 100).toFixed(0);
     const askPct = (l.ask / maxVol * 100).toFixed(0);
     const cls = l.isCurrent ? ' current-price' : '';
-    html += `<div class="ofa-ladder-row${cls}">` +
+    const liveClass = l.isReal ? ' live-data' : '';
+    html += `<div class="ofa-ladder-row${cls}${liveClass}">` +
       `<span class="ofa-vol-col">${l.bid}</span>` +
       `<span class="ofa-bar-col bid-side"><span class="ofa-bid-bar" style="width:${bidPct}%"></span></span>` +
       `<span class="ofa-price-col">$${l.price.toFixed(info.decimals)}</span>` +
       `<span class="ofa-bar-col ask-side"><span class="ofa-ask-bar" style="width:${askPct}%"></span></span>` +
       `<span class="ofa-vol-col">${l.ask}</span></div>`;
   }
+  
+  const containerParent = container.parentElement;
+  const existingStatus = containerParent.querySelector('.ofa-status');
+  if (existingStatus) existingStatus.remove();
+  container.insertAdjacentHTML('beforebegin', statusHTML);
+  
   container.innerHTML = html;
   const deltaBox = document.getElementById('ofa-delta-box');
   deltaEl.textContent = (totalDelta >= 0 ? '+' : '') + totalDelta;
   deltaEl.className = totalDelta >= 0 ? 'ofa-delta-pos' : 'ofa-delta-neg';
+  
+  // Add order flow signals
+  if (isLive) {
+    const signals = getOrderFlowSignals();
+    const signalEl = document.getElementById('ofa-signals') || (() => {
+      const el = document.createElement('div');
+      el.id = 'ofa-signals';
+      el.className = 'ofa-signals';
+      deltaBox.after(el);
+      return el;
+    })();
+    
+    const signalColor = signals.signal === 'bullish' ? '#00ff41' : signals.signal === 'bearish' ? '#ff4444' : '#666';
+    signalEl.innerHTML = `<div class="ofa-signal" style="color: ${signalColor}">
+      📊 ${signals.signal.toUpperCase()} (${signals.strength}/10)<br>
+      <small>${signals.reason}</small>
+    </div>`;
+  }
+}
+
+// Bot Intelligence: Use order flow for trading decisions
+function getBotOrderFlowAdvice(currentPrice) {
+  const signals = getOrderFlowSignals();
+  const levels = generateOrderFlowData(currentPrice);
+  
+  if (!LIVE_ORDER_FLOW.isConnected || levels.length === 0 || !levels[0].isReal) {
+    return { action: 'hold', confidence: 0, reason: 'No live order flow data' };
+  }
+  
+  const { signal, strength, imbalance } = signals;
+  
+  // High-confidence signals for bot trading
+  if (signal === 'bullish' && strength >= 7) {
+    return { 
+      action: 'buy', 
+      confidence: strength, 
+      reason: `Strong bid pressure detected (${(imbalance * 100).toFixed(0)}% bid volume)`,
+      suggestedSize: Math.min(500, strength * 50) // Larger size for stronger signals
+    };
+  }
+  
+  if (signal === 'bearish' && strength >= 7) {
+    return { 
+      action: 'sell', 
+      confidence: strength, 
+      reason: `Strong ask pressure detected (${((1-imbalance) * 100).toFixed(0)}% ask volume)`,
+      suggestedSize: Math.min(500, strength * 50)
+    };
+  }
+  
+  // Look for absorption patterns (large volume at key levels)
+  const currentLevel = levels.find(l => l.isCurrent);
+  if (currentLevel) {
+    const totalVolume = currentLevel.bid + currentLevel.ask;
+    const avgVolume = levels.reduce((sum, l) => sum + l.bid + l.ask, 0) / levels.length;
+    
+    if (totalVolume > avgVolume * 3) {
+      // High volume at current price = potential absorption
+      return {
+        action: imbalance > 0.6 ? 'buy' : 'sell',
+        confidence: 8,
+        reason: `Volume absorption detected at current price (${totalVolume} vs ${avgVolume.toFixed(0)} avg)`,
+        suggestedSize: 300
+      };
+    }
+  }
+  
+  return { 
+    action: 'hold', 
+    confidence: strength, 
+    reason: signal === 'neutral' ? 'Balanced order flow' : `${signal} but insufficient strength (${strength}/10)`
+  };
+}
+
+function toggleLiveOrderFlow(enabled) {
+  LIVE_ORDER_FLOW.useRealData = enabled;
+  localStorage.setItem('incentives-live-orderflow', enabled.toString());
+  
+  if (enabled && !LIVE_ORDER_FLOW.isConnected) {
+    initLiveOrderFlow();
+    showNotification('🌊 Connecting to live order flow...', 'info');
+  } else if (!enabled && LIVE_ORDER_FLOW.ws) {
+    LIVE_ORDER_FLOW.ws.close();
+    LIVE_ORDER_FLOW.isConnected = false;
+    showNotification('📴 Live order flow disconnected', 'warning');
+  }
 }
 
 // === PORTFOLIO TAB UPDATES ===
