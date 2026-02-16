@@ -40,50 +40,6 @@ function tradeRateLimitOk() {
   return true;
 }
 
-// === NOTIFICATION SYSTEM ===
-function showNotification(message, type = 'info') {
-  // Create notification element
-  const notification = document.createElement('div');
-  notification.className = `notification notification-${type}`;
-  notification.textContent = message;
-  
-  // Style the notification
-  Object.assign(notification.style, {
-    position: 'fixed',
-    top: '20px',
-    right: '20px',
-    padding: '12px 20px',
-    borderRadius: '6px',
-    color: 'white',
-    fontWeight: '600',
-    fontSize: '13px',
-    zIndex: '10000',
-    maxWidth: '300px',
-    wordWrap: 'break-word',
-    animation: 'fadeInSlide 0.3s ease',
-    backgroundColor: type === 'success' ? '#00c853' : 
-                     type === 'error' ? '#ff1744' : 
-                     type === 'warning' ? '#ff9800' : '#2196f3'
-  });
-  
-  // Add to page
-  document.body.appendChild(notification);
-  
-  // Auto-remove after 4 seconds
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.style.animation = 'fadeOut 0.3s ease';
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.parentNode.removeChild(notification);
-        }
-      }, 300);
-    }
-  }, 4000);
-  
-  console.log(`[${type.toUpperCase()}] ${message}`);
-}
-
 // === TRADING PAIRS CONFIG ===
 const PAIRS = {
   // Crypto (live from Kraken)
@@ -1597,7 +1553,7 @@ function cleanupGame() {
 // ============================================================
 const TokenEconomy = (() => {
   const STORE_KEY = 'incentives-token-economy';
-  const STARTING_BALANCE = 10000;
+  const STARTING_BALANCE = 500;
 
   // Achievement definitions
   const ACHIEVEMENTS = {
@@ -1652,21 +1608,6 @@ const TokenEconomy = (() => {
     if (!data.progress) data.progress = defaultData().progress;
     if (!data.unlockedFeatures) data.unlockedFeatures = {};
     if (!data.transactions) data.transactions = [];
-    if (!data.totalBurned) data.totalBurned = 0;
-    
-    // One-time balance boost for agent deployment testing
-    if (!data.agentDeploymentBoost && data.balance < 5000) {
-      data.balance = Math.max(data.balance, 10000);
-      data.agentDeploymentBoost = true;
-      data.transactions.unshift({ 
-        date: new Date().toISOString(), 
-        type: 'earned', 
-        amount: 10000 - (data.balance - 10000), 
-        desc: 'Agent deployment system bonus', 
-        balance: data.balance 
-      });
-      save();
-    }
   }
 
   function save() { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
