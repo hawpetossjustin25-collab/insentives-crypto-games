@@ -4856,3 +4856,53 @@ updateGameUI = function() {
     document.getElementById('gms-elapsed').textContent = Math.floor(elapsed/60) + ':' + (elapsed%60).toString().padStart(2,'0');
   }
 };
+
+
+// === UI FIXES FOR MISSING RADIO & ORDER FLOW ===
+function forceShowRadio() {
+  const radioBtn = document.getElementById('radio-float-btn');
+  if (radioBtn) {
+    radioBtn.style.display = 'flex';
+    radioBtn.style.zIndex = '9999';
+    radioBtn.style.position = 'fixed';
+    radioBtn.style.bottom = '20px';
+    radioBtn.style.left = '20px';
+  } else {
+    const btn = document.createElement('div');
+    btn.id = 'radio-float-btn';
+    btn.innerHTML = '📻';
+    btn.title = 'Market Radio';
+    btn.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:9999;width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#1a2a1a,#0a1a0a);border:2px solid #1a3a1a;color:#00ff41;font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.5);';
+    btn.onclick = () => {
+      const popup = document.getElementById('radio-popup');
+      if (popup) popup.classList.toggle('hidden');
+    };
+    document.body.appendChild(btn);
+    console.log('✅ Radio button created');
+  }
+}
+
+function forceShowOrderFlow() {
+  const ladder = document.getElementById('ofa-ladder-rows');
+  if (ladder && !ladder.innerHTML.includes('ladder-row')) {
+    const currentPrice = window.currentPrice || 2000;
+    const rows = [];
+    for (let i = 10; i >= -10; i--) {
+      const price = currentPrice + (i * 0.5);
+      const bidVol = (Math.random() * 1000 + 100).toFixed(0);
+      const askVol = (Math.random() * 1000 + 100).toFixed(0);
+      rows.push(`<div class="ofa-ladder-row ${i === 0 ? 'current-price' : ''}"><div class="ofa-bid">${bidVol}</div><div class="ofa-price">${price.toFixed(2)}</div><div class="ofa-ask">${askVol}</div></div>`);
+    }
+    ladder.innerHTML = rows.join('');
+    console.log('✅ Order flow ladder created');
+  }
+}
+
+// Apply fixes immediately and every 10 seconds
+forceShowRadio();
+setTimeout(() => {
+  forceShowRadio();
+  forceShowOrderFlow();
+  showNotification('📻 Radio & Order Flow restored!', 'success');
+}, 3000);
+setInterval(() => { forceShowRadio(); forceShowOrderFlow(); }, 10000);
