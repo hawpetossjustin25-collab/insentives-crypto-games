@@ -792,6 +792,163 @@ function updateBotUI() {
   }).join('');
 }
 
+// === AGENT DEPLOYMENT ===
+const DEPLOYED_AGENTS = JSON.parse(localStorage.getItem('incentives-deployed-agents') || '{}');
+
+function deployAgent(botType) {
+  try {
+    const card = document.querySelector(`.gp-deploy-card[data-bot="${botType}"]`);
+    const amountSelect = card.querySelector('.gp-deploy-amount');
+    const deployAmount = parseInt(amountSelect.value);
+    const incentivesCost = parseInt(amountSelect.selectedOptions[0].textContent.match(/\((\d+,?\d*) 💎\)/)[1].replace(',', ''));
+    
+    // Check if user has enough INCENTIVES tokens
+    const currentBalance = TokenEconomy.getBalance();
+    if (currentBalance < incentivesCost) {
+      showNotification('❌ Insufficient INCENTIVES tokens', 'error');
+      return;
+    }
+    
+    // Check if already deployed
+    if (DEPLOYED_AGENTS[botType]) {
+      showNotification('⚠️ Agent already deployed', 'warning');
+      return;
+    }
+    
+    // Deduct tokens
+    TokenEconomy.spendTokens(incentivesCost, 'agent-deployment');
+    
+    // Create deployed agent
+    const agent = {
+      botType: botType,
+      deployedAmount: deployAmount,
+      costTokens: incentivesCost,
+      deployedAt: Date.now(),
+      status: 'active',
+      totalPL: 0,
+      trades: 0,
+      walletAddress: generateMockWalletAddress()
+    };
+    
+    DEPLOYED_AGENTS[botType] = agent;
+    localStorage.setItem('incentives-deployed-agents', JSON.stringify(DEPLOYED_AGENTS));
+    
+    // Update UI
+    updateDeployedAgentsUI();
+    
+    // Show success
+    showNotification(`🚀 ${getBotName(botType)} deployed with $${deployAmount}!`, 'success');
+    
+    // Start mock trading after 5 seconds
+    setTimeout(() => startMockAgentTrading(botType), 5000);
+    
+  } catch (error) {
+    console.error('Deploy agent error:', error);
+    showNotification('❌ Deployment failed', 'error');
+  }
+}
+
+function updateDeployedAgentsUI() {
+  Object.keys(DEPLOYED_AGENTS).forEach(botType => {
+    const agent = DEPLOYED_AGENTS[botType];
+    const statusEl = document.getElementById(`${botType}-agent-status`);
+    const deployBtn = document.querySelector(`.gp-deploy-card[data-bot="${botType}"] .gp-deploy-btn`);
+    const card = document.querySelector(`.gp-deploy-card[data-bot="${botType}"]`);
+    
+    if (agent.status === 'active') {
+      card.setAttribute('data-deployed', 'true');
+      deployBtn.disabled = true;
+      deployBtn.textContent = '✅ Deployed';
+      
+      const pl = agent.totalPL;
+      const plText = pl >= 0 ? `+$${pl.toFixed(2)}` : `-$${Math.abs(pl).toFixed(2)}`;
+      const plClass = pl >= 0 ? 'status-profit' : 'status-loss';
+      statusEl.innerHTML = `💼 $${agent.deployedAmount} • ${agent.trades} trades • <span class="${plClass}">${plText}</span>`;
+      statusEl.className = 'gp-deploy-status status-active';
+    }
+  });
+}
+
+function startMockAgentTrading(botType) {
+  if (!DEPLOYED_AGENTS[botType]) return;
+  
+  // Simulate trading every 2-8 minutes
+  const interval = 120000 + Math.random() * 360000; // 2-8 min
+  
+  setTimeout(() => {
+    simulateAgentTrade(botType);
+    startMockAgentTrading(botType); // Recurse
+  }, interval);
+}
+
+function simulateAgentTrade(botType) {
+  const agent = DEPLOYED_AGENTS[botType];
+  if (!agent || agent.status !== 'active') return;
+  
+  // Generate mock trade based on bot strategy
+  let profitChance, avgProfit;
+  
+  switch (botType) {
+    case 'scalp':
+      profitChance = 0.65; // 65% win rate
+      avgProfit = agent.deployedAmount * 0.003; // 0.3% avg
+      break;
+    case 'dip':
+      profitChance = 0.58; // 58% win rate  
+      avgProfit = agent.deployedAmount * 0.008; // 0.8% avg
+      break;
+    case 'grid':
+      profitChance = 0.70; // 70% win rate
+      avgProfit = agent.deployedAmount * 0.005; // 0.5% avg
+      break;
+    default:
+      profitChance = 0.60;
+      avgProfit = agent.deployedAmount * 0.005;
+  }
+  
+  const isWin = Math.random() < profitChance;
+  const tradeResult = isWin ? 
+    avgProfit * (0.5 + Math.random()) : 
+    -avgProfit * (0.3 + Math.random() * 0.7);
+  
+  // Update agent stats
+  agent.totalPL += tradeResult;
+  agent.trades += 1;
+  
+  // Update storage
+  DEPLOYED_AGENTS[botType] = agent;
+  localStorage.setItem('incentives-deployed-agents', JSON.stringify(DEPLOYED_AGENTS));
+  
+  // Update UI
+  updateDeployedAgentsUI();
+  
+  // Notification for significant trades
+  if (Math.abs(tradeResult) > agent.deployedAmount * 0.01) {
+    const botName = getBotName(botType);
+    const result = tradeResult >= 0 ? `+$${tradeResult.toFixed(2)}` : `-$${Math.abs(tradeResult).toFixed(2)}`;
+    showNotification(`${getAgentIcon(botType)} ${botName}: ${result}`, tradeResult >= 0 ? 'success' : 'warning');
+  }
+}
+
+function getBotName(botType) {
+  const names = { scalp: 'Scalping Agent', dip: 'Dip Buying Agent', grid: 'Grid Trading Agent' };
+  return names[botType] || 'Trading Agent';
+}
+
+function getAgentIcon(botType) {
+  const icons = { scalp: '⚡', dip: '📉', grid: '📊' };
+  return icons[botType] || '🤖';
+}
+
+function generateMockWalletAddress() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz123456789';
+  let result = '';
+  for (let i = 0; i < 44; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 // === EVENT HANDLERS ===
 function setupEvents() {
   // Side toggle
@@ -1217,6 +1374,14 @@ async function init() {
   setInterval(tick, 5000);
   updateUI();
   updateBotUI();
+  updateDeployedAgentsUI();
+  
+  // Start mock trading for any existing deployed agents
+  Object.keys(DEPLOYED_AGENTS).forEach(botType => {
+    if (DEPLOYED_AGENTS[botType].status === 'active') {
+      startMockAgentTrading(botType);
+    }
+  });
   try { TokenEconomy.init(); } catch(e) { console.error('TokenEconomy init failed:', e); }
 }
 
