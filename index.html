@@ -776,6 +776,16 @@
     </div>
 
     <h3>📡 Live Order Flow Visualization</h3>
+    <div class="ofa-controls">
+      <label class="ofa-toggle-label">
+        <input type="checkbox" id="live-orderflow-toggle" onchange="toggleLiveOrderFlow(this.checked)">
+        <span class="ofa-toggle-slider"></span>
+        <span class="ofa-toggle-text">🌊 Connect to Live Kraken Data</span>
+      </label>
+      <div class="ofa-toggle-info">
+        <small>🟡 Demo: Simulated order flow • 🟢 Live: Real Kraken WebSocket data</small>
+      </div>
+    </div>
     <div class="ofa-live-row">
     <div class="ofa-ladder" id="ofa-ladder">
       <div class="ofa-ladder-title">
