@@ -1522,3 +1522,15 @@ body.theme-light .h-tab.active{color:#1a1a2e}
 }
 .ofa-delta-pos{color:var(--green)}
 .ofa-delta-neg{color:var(--red)}
+
+
+/* === FORCE VISIBLE UI FIXES === */
+#radio-float-btn { display: flex !important; z-index: 9999 !important; }
+#radio-popup { z-index: 10000 !important; }
+#ofa-ladder, #ofa-ladder-rows { display: block !important; visibility: visible !important; }
+.ofa-ladder-row { display: flex; justify-content: space-between; padding: 2px 8px; font-family: monospace; font-size: 11px; }
+.ofa-ladder-row.current-price { background: rgba(0,255,65,0.1); color: #00ff41; }
+.ofa-bid { color: #00c853; }
+.ofa-ask { color: #ff1744; }
+.ofa-price { color: #fff; font-weight: 600; }
+#order-flow-academy { display: block !important; }
