@@ -3,328 +3,443 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.kraken.com wss://ws.kraken.com https://api.coingecko.com; img-src 'self' data:;">
-<meta http-equiv="X-Content-Type-Options" content="nosniff">
-<meta name="referrer" content="no-referrer">
 <title>INCENTIVES - Crypto Trading Game</title>
-<link rel="stylesheet" href="styles.css">
 <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
-<script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-<script>
-// Load theme before render to prevent flash
-(function(){
-var s=JSON.parse(localStorage.getItem('incentives-settings'))||{};
-var t=s.theme||'dark';
-document.documentElement.className='theme-'+t;
-})();
-</script>
-</head>
-<body>
-
-<div class="container">
-  <nav class="top-nav">
-    <div class="nav-left">
-      <div class="logo">
-        <img src="logo.jpg" alt="INCENTIVES" class="logo-img">
-        <span class="logo-text">INCENTIVES</span>
-      </div>
-    </div>
-    
-    <div class="nav-center">
-      <div class="nav-tabs">
-        <button class="nav-tab active" onclick="showTab('trading')">Trading</button>
-        <button class="nav-tab" onclick="showTab('challenge')">Challenge</button>
-        <button class="nav-tab" onclick="showTab('leaderboard')">Leaderboard</button>
-        <button class="nav-tab" onclick="showTab('academy')">Academy</button>
-      </div>
-    </div>
-    
-    <div class="nav-right">
-      <div id="incentives-balance" class="incentives-bal">
-        <span class="incv-icon">💰</span>
-        <span id="incentives-amount" class="mono">10,000</span>
-        <span class="incv-label">INCENTIVES</span>
-      </div>
-      <div class="wallet-section">
-        <button id="connect-wallet" class="connect-btn">Connect Wallet</button>
-        <div id="wallet-info" class="wallet-info hidden">
-          <span id="wallet-address"></span>
-          <button id="disconnect-wallet">×</button>
-        </div>
-      </div>
-      <button class="settings-btn" onclick="toggleSettings()">⚙️</button>
-    </div>
-  </nav>
-
-  <div id="trading-tab" class="tab-content active">
-    <div class="main-grid">
-      <div class="chart-panel">
-        <div class="chart-header">
-          <div class="pair-selector">
-            <select id="trading-pair" onchange="changeTradingPair()">
-              <option value="ETH/USD">ETH/USD</option>
-              <option value="BTC/USD">BTC/USD</option>
-              <option value="SOL/USD">SOL/USD</option>
-            </select>
-          </div>
-          <div class="chart-controls">
-            <button class="timeframe-btn active" data-timeframe="1m">1m</button>
-            <button class="timeframe-btn" data-timeframe="5m">5m</button>
-            <button class="timeframe-btn" data-timeframe="15m">15m</button>
-            <button class="timeframe-btn" data-timeframe="1h">1h</button>
-          </div>
-          <div class="price-display">
-            <span id="current-price" class="price">$0.00</span>
-            <span id="price-change" class="change">+0.00%</span>
-          </div>
-        </div>
-        <div id="tradingview-chart" class="chart-container"></div>
-      </div>
-
-      <div class="trading-panel">
-        <div class="order-form">
-          <div class="balance-display">
-            <div class="balance-item">
-              <span>USD Balance:</span>
-              <span id="usd-balance" class="mono">10000.00</span>
-            </div>
-            <div class="balance-item">
-              <span id="crypto-balance-label">ETH Balance:</span>
-              <span id="crypto-balance" class="mono">0.0000</span>
-            </div>
-          </div>
-          <button id="place-order-btn" class="place-order-btn">
-            <span>Test Trading</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Settings Modal -->
-<div id="settings-modal" class="modal-overlay hidden">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>Settings</h3>
-      <button onclick="toggleSettings()" class="close-btn">×</button>
-    </div>
-    <div class="modal-body">
-      <p>Settings panel</p>
-    </div>
-  </div>
-</div>
-
-<!-- Notification Container -->
-<div id="notification-container"></div>
-
-<!-- FLOATING BUTTONS - WALLET ABOVE RADIO -->
-<button id="wallet-float-btn" onclick="toggleWalletPopup()">👛</button>
-<button id="radio-float-btn" onclick="toggleRadioPopup()">📻</button>
-
-<!-- Wallet Popup -->
-<div id="wallet-popup" class="hidden wallet-popup">
-  <div class="wallet-header">
-    <h3>👛 Wallet & Balances</h3>
-    <button onclick="toggleWalletPopup()" class="close-wallet">×</button>
-  </div>
-  <div class="wallet-content">
-    
-    <!-- Token Balances Section -->
-    <div class="wallet-section">
-      <h4>💎 Token Balances</h4>
-      <div class="balance-grid">
-        <div class="balance-card incentives-card">
-          <div class="balance-icon">💰</div>
-          <div class="balance-info">
-            <div class="balance-label">INCENTIVES</div>
-            <div class="balance-amount" id="wallet-incentives">10,000</div>
-          </div>
-          <button class="balance-action" onclick="openConversionFromWallet()">Convert</button>
-        </div>
-        
-        <div class="balance-card credits-card">
-          <div class="balance-icon">💳</div>
-          <div class="balance-info">
-            <div class="balance-label">CREDITS</div>
-            <div class="balance-amount" id="wallet-credits">0</div>
-          </div>
-          <button class="balance-action" onclick="openCreditsManagement()">Manage</button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Trading Balances Section -->
-    <div class="wallet-section">
-      <h4>📊 Trading Balances</h4>
-      <div class="balance-grid">
-        <div class="balance-card usd-card">
-          <div class="balance-icon">💵</div>
-          <div class="balance-info">
-            <div class="balance-label">USD Balance</div>
-            <div class="balance-amount" id="wallet-usd">10,000.00</div>
-          </div>
-          <button class="balance-action" onclick="showTradingTab()">Trade</button>
-        </div>
-        
-        <div class="balance-card crypto-card">
-          <div class="balance-icon">⟠</div>
-          <div class="balance-info">
-            <div class="balance-label" id="wallet-crypto-label">ETH Balance</div>
-            <div class="balance-amount" id="wallet-crypto">0.0000</div>
-          </div>
-          <button class="balance-action" onclick="showTradingTab()">Trade</button>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Quick Actions Section -->
-    <div class="wallet-section">
-      <h4>⚡ Quick Actions</h4>
-      <div class="quick-actions">
-        <button class="quick-action-btn" onclick="openConversionFromWallet()">
-          <span class="action-icon">🔄</span>
-          <span>Convert INCENTIVES</span>
-        </button>
-        <button class="quick-action-btn" onclick="connectWalletFromPopup()">
-          <span class="action-icon">🔗</span>
-          <span>Connect Wallet</span>
-        </button>
-        <button class="quick-action-btn" onclick="showTransactionHistory()">
-          <span class="action-icon">📜</span>
-          <span>Transaction History</span>
-        </button>
-        <button class="quick-action-btn" onclick="showServicePrices()">
-          <span class="action-icon">💰</span>
-          <span>Service Prices</span>
-        </button>
-      </div>
-    </div>
-    
-    <!-- Portfolio Summary -->
-    <div class="wallet-section">
-      <h4>📈 Portfolio Summary</h4>
-      <div class="portfolio-summary">
-        <div class="portfolio-stat">
-          <span class="stat-label">Total Portfolio Value:</span>
-          <span class="stat-value" id="total-portfolio">$10,000.00</span>
-        </div>
-        <div class="portfolio-stat">
-          <span class="stat-label">Today's P&L:</span>
-          <span class="stat-value pnl-positive" id="daily-pnl">+$0.00</span>
-        </div>
-        <div class="portfolio-stat">
-          <span class="stat-label">Active Positions:</span>
-          <span class="stat-value" id="active-positions">0</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Radio Popup -->
-<div id="radio-popup" class="hidden">
-  <div class="radio-header">
-    <h3>📻 Trading Radio</h3>
-    <button onclick="toggleRadioPopup()" class="close-radio">×</button>
-  </div>
-  <div class="radio-content">
-    <div class="station-list">
-      <div class="station" onclick="playStation('chill')">
-        <span class="station-name">Chill Beats</span>
-        <span class="station-genre">Lo-fi Hip Hop</span>
-      </div>
-      <div class="station" onclick="playStation('focus')">
-        <span class="station-name">Focus Flow</span>
-        <span class="station-genre">Ambient</span>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Hidden elements for wallet popup to read from -->
-<div style="display: none;">
-  <span id="credits-amount">0</span>
-</div>
-
-<!-- WALLET POPUP STYLES -->
 <style>
-/* FLOATING BUTTONS - STACKED VERTICALLY */
-#wallet-float-btn {
-  position: fixed;
-  bottom: 80px; /* Above radio button */
-  right: 20px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #FFD700, #FFA500);
-  border: 2px solid #333;
-  color: #000;
-  font-size: 24px;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,.5);
-  z-index: 9998;
-  transition: all .2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* === THEME SYSTEM === */
+:root {
+  --bg: #0a0a0a;
+  --bg2: #1a1a1a;
+  --bg3: #2a2a2a;
+  --text: #ffffff;
+  --muted: #999999;
+  --border: #333333;
+  --accent: #FFD700;
+  --green: #00c853;
+  --red: #ff1744;
+  --blue: #2196f3;
 }
 
-#wallet-float-btn:hover {
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+/* === TOP BAR === */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.logo img {
+  width: 32px;
+  height: 32px;
+  margin-right: 8px;
+  border-radius: 6px;
+}
+
+.pair-selector {
+  margin-left: 20px;
+}
+
+.pair-selector select {
+  background: var(--bg3);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.balance-display {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.balance-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.balance-value {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+}
+
+.incentives-bal {
+  background: linear-gradient(135deg, var(--accent), #FFA500);
+  color: #000;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.incentives-bal:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255,215,0,0.3);
+}
+
+/* === MAIN LAYOUT === */
+.main-container {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  height: calc(100vh - 60px);
+}
+
+/* === CHART SECTION === */
+.chart-section {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+
+.price-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.current-price {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+}
+
+.price-change {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.price-change.positive {
+  background: rgba(0,200,83,0.2);
+  color: var(--green);
+}
+
+.price-change.negative {
+  background: rgba(255,23,68,0.2);
+  color: var(--red);
+}
+
+.timeframe-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--bg3);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.tf-btn {
+  padding: 6px 12px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.tf-btn.active, .tf-btn:hover {
+  background: var(--accent);
+  color: #000;
+}
+
+.chart-container {
+  flex: 1;
+  position: relative;
+  background: var(--bg);
+}
+
+/* === SIDEBAR === */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg2);
+}
+
+.panel {
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-header {
+  padding: 12px 16px;
+  background: var(--bg3);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-body {
+  padding: 16px;
+}
+
+/* === ORDER FORM === */
+.order-tabs {
+  display: flex;
+  background: var(--bg3);
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.order-tab {
+  flex: 1;
+  padding: 8px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.order-tab.active {
+  background: var(--accent);
+  color: #000;
+}
+
+.order-sides {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.side-btn {
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.buy-btn {
+  background: rgba(0,200,83,0.2);
+  color: var(--green);
+  border: 2px solid transparent;
+}
+
+.buy-btn.active {
+  border-color: var(--green);
+  background: rgba(0,200,83,0.3);
+}
+
+.sell-btn {
+  background: rgba(255,23,68,0.2);
+  color: var(--red);
+  border: 2px solid transparent;
+}
+
+.sell-btn.active {
+  border-color: var(--red);
+  background: rgba(255,23,68,0.3);
+}
+
+.input-group {
+  margin-bottom: 12px;
+}
+
+.input-group label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'Courier New', monospace;
+}
+
+.input-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.percentage-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.pct-btn {
+  padding: 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pct-btn:hover {
+  background: var(--accent);
+  color: #000;
+}
+
+.place-order-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.place-order-btn.buy-side {
+  background: var(--green);
+  color: white;
+}
+
+.place-order-btn.sell-side {
+  background: var(--red);
+  color: white;
+}
+
+.place-order-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* === PORTFOLIO === */
+.portfolio-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.portfolio-item:last-child {
+  border-bottom: none;
+}
+
+.portfolio-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.portfolio-value {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+}
+
+.pnl-positive { color: var(--green); }
+.pnl-negative { color: var(--red); }
+.pnl-zero { color: var(--muted); }
+
+/* === TRADE HISTORY === */
+.trade-history {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.trade-item {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.trade-side {
+  font-weight: 600;
+}
+
+.trade-side.buy { color: var(--green); }
+.trade-side.sell { color: var(--red); }
+
+/* === FLOATING WALLET BUTTON === */
+.wallet-float-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 60px;
+  height: 60px;
+  background: linear-gradient(135deg, var(--accent), #FFA500);
+  border: none;
+  border-radius: 50%;
+  color: #000;
+  font-size: 28px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  z-index: 1000;
+  transition: all 0.2s;
+}
+
+.wallet-float-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(255,215,0,0.4);
-  background: linear-gradient(135deg, #FFED4A, #FF8F00);
 }
 
-#wallet-float-btn.wallet-active {
-  background: linear-gradient(135deg, #00ff41, #00c853);
-  color: #000;
-}
-
-#radio-float-btn {
-  position: fixed;
-  bottom: 20px; /* Bottom position */
-  right: 20px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
-  border: 2px solid #333;
-  color: #00ff41;
-  font-size: 24px;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,.5);
-  z-index: 9999;
-  transition: all .2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#radio-float-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0,255,65,0.3);
-}
-
-#radio-float-btn.radio-active {
-  background: linear-gradient(135deg, #00ff41, #00c853);
-  color: #000;
-}
-
-/* WALLET POPUP STYLES */
+/* === WALLET POPUP === */
 .wallet-popup {
   position: fixed;
-  top: 70px;
+  top: 80px;
   right: 20px;
   width: 380px;
-  max-height: 600px;
-  background: var(--bg2, #1a1a1a);
-  border: 1px solid var(--border, #333);
+  background: var(--bg2);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-  z-index: 10001;
-  overflow-y: auto;
-  animation: slideInRight 0.2s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  z-index: 1001;
+  animation: slideInRight 0.3s ease;
+}
+
+.wallet-popup.hidden {
+  display: none;
 }
 
 @keyframes slideInRight {
@@ -337,14 +452,12 @@ document.documentElement.className='theme-'+t;
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid var(--border, #333);
-  background: linear-gradient(135deg, #FFD700, #FFA500);
+  background: linear-gradient(135deg, var(--accent), #FFA500);
+  color: #000;
   border-radius: 12px 12px 0 0;
 }
 
 .wallet-header h3 {
-  margin: 0;
-  color: #000;
   font-size: 16px;
   font-weight: 700;
 }
@@ -352,12 +465,12 @@ document.documentElement.className='theme-'+t;
 .close-wallet {
   background: none;
   border: none;
-  color: #000;
   font-size: 20px;
   cursor: pointer;
+  color: #000;
   padding: 4px;
   border-radius: 4px;
-  transition: all .2s;
+  transition: all 0.2s;
 }
 
 .close-wallet:hover {
@@ -366,44 +479,35 @@ document.documentElement.className='theme-'+t;
 
 .wallet-content {
   padding: 20px;
-  max-height: 500px;
-  overflow-y: auto;
 }
 
 .wallet-section {
   margin-bottom: 24px;
 }
 
-.wallet-section:last-child {
-  margin-bottom: 0;
-}
-
 .wallet-section h4 {
-  margin: 0 0 12px 0;
-  color: var(--text, #fff);
   font-size: 14px;
-  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text);
 }
 
 .balance-grid {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 12px;
 }
 
 .balance-card {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  background: var(--bg3, #2a2a2a);
-  border: 1px solid var(--border, #333);
+  padding: 16px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  transition: all .2s;
+  transition: all 0.2s;
 }
 
 .balance-card:hover {
-  border-color: #FFD700;
-  box-shadow: 0 2px 8px rgba(255,215,0,0.1);
+  border-color: var(--accent);
 }
 
 .balance-icon {
@@ -417,31 +521,29 @@ document.documentElement.className='theme-'+t;
 
 .balance-label {
   font-size: 12px;
-  color: var(--muted, #999);
+  color: var(--muted);
   margin-bottom: 4px;
 }
 
 .balance-amount {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
-  color: var(--text, #fff);
   font-family: 'Courier New', monospace;
 }
 
 .balance-action {
-  padding: 6px 12px;
-  background: #FFD700;
+  padding: 8px 16px;
+  background: var(--accent);
   color: #000;
   border: none;
-  border-radius: 4px;
-  font-size: 11px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all .2s;
+  transition: all 0.2s;
 }
 
 .balance-action:hover {
-  background: #FFED4A;
   transform: translateY(-1px);
 }
 
@@ -455,200 +557,868 @@ document.documentElement.className='theme-'+t;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 8px;
-  background: var(--bg3, #2a2a2a);
-  border: 1px solid var(--border, #333);
+  padding: 16px 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
-  transition: all .2s;
+  transition: all 0.2s;
   text-decoration: none;
-  color: var(--text, #fff);
+  color: var(--text);
 }
 
 .quick-action-btn:hover {
-  border-color: #FFD700;
-  background: var(--bg, #111);
+  border-color: var(--accent);
+  background: var(--bg);
   transform: translateY(-2px);
 }
 
 .action-icon {
-  font-size: 20px;
-  margin-bottom: 4px;
-}
-
-.quick-action-btn span:last-child {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.portfolio-summary {
-  background: var(--bg3, #2a2a2a);
-  border: 1px solid var(--border, #333);
-  border-radius: 8px;
-  padding: 12px 16px;
-}
-
-.portfolio-stat {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  font-size: 24px;
   margin-bottom: 8px;
 }
 
-.portfolio-stat:last-child {
-  margin-bottom: 0;
-}
-
-.stat-label {
+.quick-action-btn span:last-child {
   font-size: 12px;
-  color: var(--muted, #999);
+  font-weight: 600;
 }
 
-.stat-value {
-  font-size: 13px;
+/* === NOTIFICATIONS === */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  z-index: 10000;
+  max-width: 300px;
+  animation: slideIn 0.3s ease;
+}
+
+.notification.success { background: var(--green); }
+.notification.error { background: var(--red); }
+.notification.info { background: var(--blue); }
+
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+  .main-container {
+    grid-template-columns: 1fr;
+    grid-template-rows: 60% 40%;
+  }
+  
+  .wallet-popup {
+    width: 90%;
+    right: 5%;
+  }
+  
+  .top-bar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}
+
+/* === MODAL === */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+}
+
+.modal-header {
+  font-size: 18px;
   font-weight: 700;
-  color: var(--text, #fff);
-  font-family: 'Courier New', monospace;
+  margin-bottom: 16px;
+  color: var(--text);
 }
 
-.pnl-positive {
-  color: #00c853;
+.modal-body {
+  color: var(--text);
 }
 
-.pnl-negative {
-  color: #ff1744;
+.modal-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.modal-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn.primary {
+  background: var(--accent);
+  color: #000;
+}
+
+.modal-btn.secondary {
+  background: var(--bg3);
+  color: var(--text);
+}
+
+.hidden {
+  display: none !important;
 }
 </style>
+</head>
+<body>
 
-<!-- Bug-Proof Foundation -->
-<script src="bug-proof-core.js"></script>
-<!-- Credits System -->  
-<script src="credits-system.js"></script>
-
-<script>
-// WALLET POPUP FUNCTIONS
-function toggleWalletPopup() {
-  const popup = document.getElementById('wallet-popup');
-  const btn = document.getElementById('wallet-float-btn');
+<!-- TOP BAR -->
+<div class="top-bar">
+  <div class="logo">
+    <img src="logo.jpg" alt="INCENTIVES">
+    INCENTIVES
+  </div>
   
-  if (popup) {
-    popup.classList.toggle('hidden');
-    btn.classList.toggle('wallet-active');
+  <div class="pair-selector">
+    <select id="pair-selector">
+      <option value="ETH/USD" selected>⟠ ETH/USD</option>
+      <option value="BTC/USD">₿ BTC/USD</option>
+      <option value="SOL/USD">◎ SOL/USD</option>
+      <option value="ADA/USD">₳ ADA/USD</option>
+      <option value="AVAX/USD">🔺 AVAX/USD</option>
+      <option value="LINK/USD">⬡ LINK/USD</option>
+    </select>
+  </div>
+  
+  <div class="balance-display">
+    <div class="incentives-bal" onclick="toggleWalletPopup()">
+      <span>💎</span>
+      <span id="incentives-amount">500</span>
+      <span>INCENTIVES</span>
+    </div>
     
-    // Update balances when opening
-    if (!popup.classList.contains('hidden')) {
-      updateWalletBalances();
+    <div class="balance-item">
+      <span>Balance:</span>
+      <span class="balance-value" id="usd-balance">$10,000.00</span>
+    </div>
+    
+    <div class="balance-item">
+      <span>P&L:</span>
+      <span class="balance-value pnl-zero" id="pnl-display">$0.00</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN CONTAINER -->
+<div class="main-container">
+  
+  <!-- CHART SECTION -->
+  <div class="chart-section">
+    <div class="chart-header">
+      <div class="price-info">
+        <span class="current-price" id="current-price">$2,000.00</span>
+        <span class="price-change" id="price-change">+0.00%</span>
+        <span style="color: var(--muted); font-size: 12px;" id="volume-info">Vol: 1.2M</span>
+      </div>
+      
+      <div class="timeframe-tabs">
+        <button class="tf-btn" data-tf="1">1m</button>
+        <button class="tf-btn active" data-tf="5">5m</button>
+        <button class="tf-btn" data-tf="15">15m</button>
+        <button class="tf-btn" data-tf="60">1h</button>
+        <button class="tf-btn" data-tf="240">4h</button>
+        <button class="tf-btn" data-tf="1440">1D</button>
+      </div>
+    </div>
+    
+    <div class="chart-container">
+      <div id="trading-chart" style="width: 100%; height: 100%;"></div>
+    </div>
+  </div>
+  
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    
+    <!-- ORDER FORM -->
+    <div class="panel">
+      <div class="panel-header">
+        💱 Order
+      </div>
+      <div class="panel-body">
+        
+        <!-- Order Type Tabs -->
+        <div class="order-tabs">
+          <button class="order-tab active" data-type="market">Market</button>
+          <button class="order-tab" data-type="limit">Limit</button>
+        </div>
+        
+        <!-- Buy/Sell Buttons -->
+        <div class="order-sides">
+          <button class="side-btn buy-btn active" data-side="buy">BUY</button>
+          <button class="side-btn sell-btn" data-side="sell">SELL</button>
+        </div>
+        
+        <!-- Order Inputs -->
+        <div class="input-group">
+          <label>Price (USD)</label>
+          <input type="number" id="order-price" placeholder="2000.00" step="0.01">
+        </div>
+        
+        <div class="input-group">
+          <label id="amount-label">Amount (ETH)</label>
+          <input type="number" id="order-amount" placeholder="0.0000" step="0.0001">
+        </div>
+        
+        <div class="input-group">
+          <label>Total (USD)</label>
+          <input type="number" id="order-total" placeholder="0.00" readonly>
+        </div>
+        
+        <!-- Percentage Buttons -->
+        <div class="percentage-btns">
+          <button class="pct-btn" data-pct="25">25%</button>
+          <button class="pct-btn" data-pct="50">50%</button>
+          <button class="pct-btn" data-pct="75">75%</button>
+          <button class="pct-btn" data-pct="100">100%</button>
+        </div>
+        
+        <!-- Place Order Button -->
+        <button class="place-order-btn buy-side" id="place-order-btn">
+          BUY ETH
+        </button>
+        
+      </div>
+    </div>
+    
+    <!-- PORTFOLIO -->
+    <div class="panel">
+      <div class="panel-header">
+        📊 Portfolio
+      </div>
+      <div class="panel-body">
+        <div class="portfolio-item">
+          <span class="portfolio-label">USD Balance</span>
+          <span class="portfolio-value" id="portfolio-usd">$10,000.00</span>
+        </div>
+        <div class="portfolio-item">
+          <span class="portfolio-label" id="crypto-label">ETH Balance</span>
+          <span class="portfolio-value" id="portfolio-crypto">0.0000</span>
+        </div>
+        <div class="portfolio-item">
+          <span class="portfolio-label">Total Value</span>
+          <span class="portfolio-value" id="portfolio-total">$10,000.00</span>
+        </div>
+        <div class="portfolio-item">
+          <span class="portfolio-label">Unrealized P&L</span>
+          <span class="portfolio-value pnl-zero" id="portfolio-pnl">$0.00</span>
+        </div>
+      </div>
+    </div>
+    
+    <!-- TRADE HISTORY -->
+    <div class="panel">
+      <div class="panel-header">
+        📜 Recent Trades
+      </div>
+      <div class="panel-body">
+        <div class="trade-history" id="trade-history">
+          <div style="color: var(--muted); text-align: center; padding: 20px;">
+            Your trades will appear here
+          </div>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+</div>
+
+<!-- FLOATING WALLET BUTTON -->
+<button class="wallet-float-btn" onclick="toggleWalletPopup()" title="Wallet & Balances">
+  👛
+</button>
+
+<!-- WALLET POPUP -->
+<div class="wallet-popup hidden" id="wallet-popup">
+  <div class="wallet-header">
+    <h3>👛 Wallet & Balances</h3>
+    <button class="close-wallet" onclick="toggleWalletPopup()">×</button>
+  </div>
+  <div class="wallet-content">
+    
+    <!-- Token Balances -->
+    <div class="wallet-section">
+      <h4>💎 Token Balances</h4>
+      <div class="balance-grid">
+        <div class="balance-card">
+          <div class="balance-icon">💎</div>
+          <div class="balance-info">
+            <div class="balance-label">INCENTIVES</div>
+            <div class="balance-amount" id="wallet-incentives">500</div>
+          </div>
+          <button class="balance-action" onclick="openConvertModal()">Convert</button>
+        </div>
+        
+        <div class="balance-card">
+          <div class="balance-icon">💳</div>
+          <div class="balance-info">
+            <div class="balance-label">CREDITS</div>
+            <div class="balance-amount" id="wallet-credits">0</div>
+          </div>
+          <button class="balance-action" onclick="openCreditsModal()">Manage</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Trading Balances -->
+    <div class="wallet-section">
+      <h4>📊 Trading Balances</h4>
+      <div class="balance-grid">
+        <div class="balance-card">
+          <div class="balance-icon">💵</div>
+          <div class="balance-info">
+            <div class="balance-label">USD Balance</div>
+            <div class="balance-amount" id="wallet-usd">$10,000.00</div>
+          </div>
+          <button class="balance-action" onclick="toggleWalletPopup()">Trade</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="wallet-section">
+      <h4>⚡ Quick Actions</h4>
+      <div class="quick-actions">
+        <button class="quick-action-btn" onclick="openConvertModal()">
+          <span class="action-icon">🔄</span>
+          <span>Convert Tokens</span>
+        </button>
+        <button class="quick-action-btn" onclick="openAgenticModal()">
+          <span class="action-icon">🤖</span>
+          <span>Deploy Agents</span>
+        </button>
+      </div>
+    </div>
+    
+  </div>
+</div>
+
+<!-- NOTIFICATION CONTAINER -->
+<div id="notifications"></div>
+
+<!-- JAVASCRIPT -->
+<script>
+// === GAME STATE ===
+const gameState = {
+  // Balances
+  usdBalance: 10000,
+  cryptoBalance: 0,
+  incentives: 500,
+  credits: 0,
+  
+  // Current market
+  currentPair: 'ETH/USD',
+  currentPrice: 2000,
+  priceChange: 0,
+  
+  // UI state
+  orderSide: 'buy',
+  orderType: 'market',
+  
+  // Trading
+  trades: [],
+  
+  // Chart
+  chart: null,
+  candlestickSeries: null,
+  priceData: []
+};
+
+// === UTILITY FUNCTIONS ===
+function formatCurrency(amount) {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD'
+  }).format(amount);
+}
+
+function formatNumber(num, decimals = 4) {
+  return Number(num).toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+}
+
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.className = `notification ${type}`;
+  notification.textContent = message;
+  
+  document.getElementById('notifications').appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.animation = 'slideIn 0.3s ease reverse';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 4000);
+}
+
+function showModal(title, content, buttons = []) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal-content">
+      <div class="modal-header">${title}</div>
+      <div class="modal-body">${content}</div>
+      <div class="modal-buttons">
+        ${buttons.map(btn => `<button class="modal-btn ${btn.type || 'secondary'}" onclick="${btn.action}">${btn.text}</button>`).join('')}
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Close on click outside
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      document.body.removeChild(modal);
+    }
+  });
+  
+  return modal;
+}
+
+// === PRICE SIMULATION ===
+function generatePrice() {
+  const volatility = 0.02; // 2% volatility
+  const change = (Math.random() - 0.5) * volatility * gameState.currentPrice;
+  gameState.currentPrice = Math.max(100, gameState.currentPrice + change);
+  gameState.priceChange = change;
+  
+  return gameState.currentPrice;
+}
+
+function generateCandleData() {
+  const now = Math.floor(Date.now() / 1000);
+  const candleTime = Math.floor(now / 300) * 300; // 5-minute candles
+  
+  const price = generatePrice();
+  const open = gameState.priceData.length > 0 ? 
+    gameState.priceData[gameState.priceData.length - 1].close : price;
+  
+  const candle = {
+    time: candleTime,
+    open: open,
+    high: Math.max(open, price) + Math.random() * 20,
+    low: Math.min(open, price) - Math.random() * 20,
+    close: price,
+    volume: Math.random() * 1000000
+  };
+  
+  // Update or add candle
+  if (gameState.priceData.length > 0 && 
+      gameState.priceData[gameState.priceData.length - 1].time === candleTime) {
+    gameState.priceData[gameState.priceData.length - 1] = candle;
+  } else {
+    gameState.priceData.push(candle);
+    if (gameState.priceData.length > 200) {
+      gameState.priceData.shift();
     }
   }
+  
+  return candle;
 }
 
-function updateWalletBalances() {
-  // Update INCENTIVES
-  const incentivesAmount = document.getElementById('incentives-amount');
-  const walletIncentives = document.getElementById('wallet-incentives');
-  if (incentivesAmount && walletIncentives) {
-    walletIncentives.textContent = incentivesAmount.textContent;
+// === CHART INITIALIZATION ===
+function initChart() {
+  const container = document.getElementById('trading-chart');
+  
+  gameState.chart = LightweightCharts.createChart(container, {
+    width: container.clientWidth,
+    height: container.clientHeight,
+    layout: {
+      backgroundColor: '#0a0a0a',
+      textColor: '#ffffff'
+    },
+    grid: {
+      vertLines: { color: '#333333' },
+      horzLines: { color: '#333333' }
+    },
+    rightPriceScale: {
+      borderColor: '#333333'
+    },
+    timeScale: {
+      borderColor: '#333333',
+      timeVisible: true
+    }
+  });
+  
+  gameState.candlestickSeries = gameState.chart.addCandlestickSeries({
+    upColor: '#00c853',
+    downColor: '#ff1744',
+    borderUpColor: '#00c853',
+    borderDownColor: '#ff1744',
+    wickUpColor: '#00c853',
+    wickDownColor: '#ff1744'
+  });
+  
+  // Generate initial data
+  const now = Math.floor(Date.now() / 1000);
+  for (let i = 200; i > 0; i--) {
+    const time = now - (i * 300);
+    const price = 2000 + (Math.random() - 0.5) * 200;
+    const open = price + (Math.random() - 0.5) * 50;
+    const close = price + (Math.random() - 0.5) * 50;
+    
+    gameState.priceData.push({
+      time: time,
+      open: open,
+      high: Math.max(open, close) + Math.random() * 30,
+      low: Math.min(open, close) - Math.random() * 30,
+      close: close,
+      volume: Math.random() * 1000000
+    });
   }
   
-  // Update Credits
-  const creditsAmount = document.getElementById('credits-amount');
-  const walletCredits = document.getElementById('wallet-credits');
-  if (creditsAmount && walletCredits) {
-    walletCredits.textContent = creditsAmount.textContent;
-  }
+  gameState.candlestickSeries.setData(gameState.priceData);
+  gameState.currentPrice = gameState.priceData[gameState.priceData.length - 1].close;
   
-  // Update USD Balance
-  const usdBalance = document.getElementById('usd-balance');
-  const walletUsd = document.getElementById('wallet-usd');
-  if (usdBalance && walletUsd) {
-    walletUsd.textContent = usdBalance.textContent;
-  }
-  
-  // Update Crypto Balance
-  const cryptoBalance = document.getElementById('crypto-balance');
-  const walletCrypto = document.getElementById('wallet-crypto');
-  const cryptoLabel = document.getElementById('crypto-balance-label');
-  const walletCryptoLabel = document.getElementById('wallet-crypto-label');
-  
-  if (cryptoBalance && walletCrypto) {
-    walletCrypto.textContent = cryptoBalance.textContent;
-  }
-  if (cryptoLabel && walletCryptoLabel) {
-    walletCryptoLabel.textContent = cryptoLabel.textContent;
-  }
+  // Handle resize
+  window.addEventListener('resize', () => {
+    gameState.chart.applyOptions({
+      width: container.clientWidth,
+      height: container.clientHeight
+    });
+  });
 }
 
-// Quick action functions
-function openConversionFromWallet() {
-  if (window.creditsSystem) {
-    window.creditsSystem.openConversionModal();
-    toggleWalletPopup();
+// === UPDATE UI ===
+function updateUI() {
+  // Current price
+  document.getElementById('current-price').textContent = formatCurrency(gameState.currentPrice);
+  document.getElementById('order-price').value = gameState.currentPrice.toFixed(2);
+  
+  // Price change
+  const changePercent = (gameState.priceChange / (gameState.currentPrice - gameState.priceChange)) * 100;
+  const priceChangeEl = document.getElementById('price-change');
+  priceChangeEl.textContent = `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`;
+  priceChangeEl.className = `price-change ${changePercent >= 0 ? 'positive' : 'negative'}`;
+  
+  // Balances
+  document.getElementById('usd-balance').textContent = formatCurrency(gameState.usdBalance);
+  document.getElementById('portfolio-usd').textContent = formatCurrency(gameState.usdBalance);
+  document.getElementById('wallet-usd').textContent = formatCurrency(gameState.usdBalance);
+  
+  document.getElementById('portfolio-crypto').textContent = formatNumber(gameState.cryptoBalance, 4);
+  
+  const totalValue = gameState.usdBalance + (gameState.cryptoBalance * gameState.currentPrice);
+  document.getElementById('portfolio-total').textContent = formatCurrency(totalValue);
+  
+  const pnl = totalValue - 10000;
+  const pnlText = `${pnl >= 0 ? '+' : ''}${formatCurrency(pnl)}`;
+  const pnlClass = pnl > 0 ? 'pnl-positive' : pnl < 0 ? 'pnl-negative' : 'pnl-zero';
+  
+  document.getElementById('pnl-display').textContent = pnlText;
+  document.getElementById('pnl-display').className = `balance-value ${pnlClass}`;
+  document.getElementById('portfolio-pnl').textContent = pnlText;
+  document.getElementById('portfolio-pnl').className = `portfolio-value ${pnlClass}`;
+  
+  // INCENTIVES
+  document.getElementById('incentives-amount').textContent = gameState.incentives.toLocaleString();
+  document.getElementById('wallet-incentives').textContent = gameState.incentives.toLocaleString();
+  document.getElementById('wallet-credits').textContent = gameState.credits.toLocaleString();
+  
+  // Order total calculation
+  updateOrderTotal();
+}
+
+function updateOrderTotal() {
+  const price = parseFloat(document.getElementById('order-price').value) || gameState.currentPrice;
+  const amount = parseFloat(document.getElementById('order-amount').value) || 0;
+  document.getElementById('order-total').value = (price * amount).toFixed(2);
+}
+
+// === TRADING FUNCTIONS ===
+function placeTrade() {
+  const side = gameState.orderSide;
+  const amount = parseFloat(document.getElementById('order-amount').value);
+  const price = parseFloat(document.getElementById('order-price').value) || gameState.currentPrice;
+  const total = amount * price;
+  
+  if (!amount || amount <= 0) {
+    showNotification('Please enter a valid amount', 'error');
+    return;
+  }
+  
+  if (side === 'buy') {
+    if (total > gameState.usdBalance) {
+      showNotification('Insufficient USD balance', 'error');
+      return;
+    }
+    
+    gameState.usdBalance -= total;
+    gameState.cryptoBalance += amount;
+    gameState.incentives += Math.floor(amount); // Reward INCENTIVES
+    
+    showNotification(`✅ Bought ${formatNumber(amount)} ETH for ${formatCurrency(total)}`, 'success');
   } else {
-    alert('💰 INCENTIVES → Credits Conversion\n\n10,000 INCENTIVES available!\nConversion rate: 1 INCENTIVES = 10 Credits');
+    if (amount > gameState.cryptoBalance) {
+      showNotification('Insufficient crypto balance', 'error');
+      return;
+    }
+    
+    gameState.cryptoBalance -= amount;
+    gameState.usdBalance += total;
+    gameState.incentives += Math.floor(amount); // Reward INCENTIVES
+    
+    showNotification(`✅ Sold ${formatNumber(amount)} ETH for ${formatCurrency(total)}`, 'success');
   }
-}
-
-function openCreditsManagement() {
-  if (window.creditsSystem) {
-    window.creditsSystem.openCreditsMenu();
-    toggleWalletPopup();
-  } else {
-    alert('💳 Credits Management\n\nCurrent balance: 0 Credits\nServices available:\n• Messages (1 credit)\n• API calls (5 credits)\n• AI analysis (10 credits)');
-  }
-}
-
-function showTradingTab() {
-  toggleWalletPopup();
-  alert('📊 Switching to Trading Tab');
-}
-
-function connectWalletFromPopup() {
-  const connectBtn = document.getElementById('connect-wallet');
-  if (connectBtn) {
-    connectBtn.click();
-  }
-  alert('🔗 Connecting external crypto wallet...');
-}
-
-function showTransactionHistory() {
-  alert('📜 Transaction History\n\nNo transactions yet.\nStart by converting INCENTIVES to Credits!');
-  toggleWalletPopup();
-}
-
-function showServicePrices() {
-  alert('💰 Service Prices\n\n• Message: 1 Credit\n• API Call: 5 Credits\n• AI Analysis: 10 Credits\n• Agent Deployment: 100 Credits\n• Agent Rental: 50 Credits/day');
-  toggleWalletPopup();
-}
-
-function playStation(station) {
-  alert('📻 Playing: ' + station);
-}
-
-// Simple game functions
-function toggleSettings() {
-  document.getElementById('settings-modal').classList.toggle('hidden');
-}
-
-function toggleRadioPopup() {
-  const popup = document.getElementById('radio-popup');
-  const btn = document.getElementById('radio-float-btn');
   
+  // Add to trade history
+  gameState.trades.unshift({
+    time: new Date().toLocaleTimeString(),
+    side: side,
+    amount: amount,
+    price: price,
+    total: total
+  });
+  
+  // Update trade history UI
+  updateTradeHistory();
+  
+  // Update UI
+  updateUI();
+  
+  // Clear order form
+  document.getElementById('order-amount').value = '';
+  document.getElementById('order-total').value = '';
+}
+
+function updateTradeHistory() {
+  const container = document.getElementById('trade-history');
+  
+  if (gameState.trades.length === 0) {
+    container.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">Your trades will appear here</div>';
+    return;
+  }
+  
+  container.innerHTML = gameState.trades.slice(0, 10).map(trade => `
+    <div class="trade-item">
+      <div>
+        <span class="trade-side ${trade.side}">${trade.side.toUpperCase()}</span>
+        ${formatNumber(trade.amount)} @ ${formatCurrency(trade.price)}
+      </div>
+      <div style="color: var(--muted);">${trade.time}</div>
+    </div>
+  `).join('');
+}
+
+// === WALLET FUNCTIONS ===
+function toggleWalletPopup() {
+  const popup = document.getElementById('wallet-popup');
   popup.classList.toggle('hidden');
-  btn.classList.toggle('radio-active');
+  
+  if (!popup.classList.contains('hidden')) {
+    updateUI(); // Refresh wallet balances
+  }
 }
 
-function showTab(tab) {
-  console.log('Switching to tab:', tab);
+function openConvertModal() {
+  const modal = showModal(
+    '🔄 Convert INCENTIVES to Credits',
+    `
+      <p>Exchange rate: <strong>1 INCENTIVES = 10 Credits</strong></p>
+      <p>Available: <strong>${gameState.incentives.toLocaleString()} INCENTIVES</strong></p>
+      <div style="margin: 16px 0;">
+        <label style="display: block; margin-bottom: 8px;">Amount to convert:</label>
+        <input type="number" id="convert-amount" max="${gameState.incentives}" min="1" placeholder="100" 
+               style="width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; color: var(--text);">
+      </div>
+    `,
+    [
+      {
+        text: 'Cancel',
+        action: 'document.body.removeChild(document.querySelector(".modal-overlay"))'
+      },
+      {
+        text: 'Convert',
+        type: 'primary',
+        action: 'executeConversion()'
+      }
+    ]
+  );
 }
 
-function changeTradingPair() {
-  console.log('Trading pair changed');
+function executeConversion() {
+  const amount = parseInt(document.getElementById('convert-amount').value);
+  
+  if (!amount || amount <= 0 || amount > gameState.incentives) {
+    showNotification('Invalid conversion amount', 'error');
+    return;
+  }
+  
+  gameState.incentives -= amount;
+  gameState.credits += amount * 10;
+  
+  showNotification(`✅ Converted ${amount} INCENTIVES to ${amount * 10} Credits!`, 'success');
+  
+  // Close modal
+  document.body.removeChild(document.querySelector('.modal-overlay'));
+  updateUI();
 }
 
-// Simple balance fix
-localStorage.setItem('incentives_balance_default', '10000');
+function openCreditsModal() {
+  showModal(
+    '💳 Credits Management',
+    `
+      <p>Current balance: <strong>${gameState.credits.toLocaleString()} Credits</strong></p>
+      <h4 style="margin: 16px 0 8px 0;">Service Prices:</h4>
+      <div style="background: var(--bg3); padding: 12px; border-radius: 6px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <span>📱 AI Message</span>
+          <span>1 Credit</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <span>📊 Market Analysis</span>
+          <span>10 Credits</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+          <span>🤖 Agent Deployment</span>
+          <span>100 Credits</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span>🔄 Agent Rental (per day)</span>
+          <span>50 Credits</span>
+        </div>
+      </div>
+    `,
+    [
+      {
+        text: 'Close',
+        action: 'document.body.removeChild(document.querySelector(".modal-overlay"))'
+      }
+    ]
+  );
+}
 
-console.log('🎮 Game loaded with wallet popup above radio button!');
+function openAgenticModal() {
+  showModal(
+    '🤖 Agentic Agents Platform',
+    `
+      <p>Deploy AI trading agents with real crypto wallets!</p>
+      <ul style="margin: 12px 0; padding-left: 20px;">
+        <li>Connect Phantom wallet</li>
+        <li>Real Solana blockchain trading</li>
+        <li>Agent marketplace</li>
+        <li>Autonomous trading strategies</li>
+      </ul>
+      <p><strong>Coming soon on separate website!</strong></p>
+      <p>This keeps the trading game fast and focused.</p>
+    `,
+    [
+      {
+        text: 'Got it!',
+        action: 'document.body.removeChild(document.querySelector(".modal-overlay"))'
+      }
+    ]
+  );
+}
+
+// === EVENT LISTENERS ===
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize chart
+  initChart();
+  
+  // Order type tabs
+  document.querySelectorAll('.order-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.order-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      gameState.orderType = tab.dataset.type;
+    });
+  });
+  
+  // Order side buttons
+  document.querySelectorAll('.side-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.side-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      gameState.orderSide = btn.dataset.side;
+      
+      // Update button text and style
+      const placeBtn = document.getElementById('place-order-btn');
+      if (gameState.orderSide === 'buy') {
+        placeBtn.textContent = `BUY ${gameState.currentPair.split('/')[0]}`;
+        placeBtn.className = 'place-order-btn buy-side';
+      } else {
+        placeBtn.textContent = `SELL ${gameState.currentPair.split('/')[0]}`;
+        placeBtn.className = 'place-order-btn sell-side';
+      }
+    });
+  });
+  
+  // Percentage buttons
+  document.querySelectorAll('.pct-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const percent = parseInt(btn.dataset.pct);
+      const isBuy = gameState.orderSide === 'buy';
+      
+      if (isBuy) {
+        const total = gameState.usdBalance * (percent / 100);
+        const amount = total / gameState.currentPrice;
+        document.getElementById('order-amount').value = amount.toFixed(4);
+        document.getElementById('order-total').value = total.toFixed(2);
+      } else {
+        const amount = gameState.cryptoBalance * (percent / 100);
+        document.getElementById('order-amount').value = amount.toFixed(4);
+        document.getElementById('order-total').value = (amount * gameState.currentPrice).toFixed(2);
+      }
+    });
+  });
+  
+  // Order input updates
+  document.getElementById('order-amount').addEventListener('input', updateOrderTotal);
+  document.getElementById('order-price').addEventListener('input', updateOrderTotal);
+  
+  // Place order button
+  document.getElementById('place-order-btn').addEventListener('click', placeTrade);
+  
+  // Start price updates
+  setInterval(() => {
+    const newCandle = generateCandleData();
+    if (gameState.candlestickSeries) {
+      gameState.candlestickSeries.update(newCandle);
+    }
+    updateUI();
+  }, 3000);
+  
+  // Initial UI update
+  updateUI();
+  
+  console.log('🎮 INCENTIVES Trading Game loaded successfully!');
+  showNotification('🎮 Welcome to INCENTIVES Trading Game!', 'success');
+});
 </script>
 
 </body>
