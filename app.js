@@ -3858,7 +3858,7 @@ function setupPlayerBotToggles() {
 // ============================================================
 const TokenEconomy = (() => {
   const STORE_KEY = 'incentives-token-economy';
-  const STARTING_BALANCE = 500;
+  const STARTING_BALANCE = 10000;
 
   // Achievement definitions
   const ACHIEVEMENTS = {
@@ -3914,6 +3914,20 @@ const TokenEconomy = (() => {
     if (!data.unlockedFeatures) data.unlockedFeatures = {};
     if (!data.transactions) data.transactions = [];
     if (!data.totalBurned) data.totalBurned = 0;
+    
+    // One-time balance boost for agent deployment testing
+    if (!data.agentDeploymentBoost && data.balance < 5000) {
+      data.balance = Math.max(data.balance, 10000);
+      data.agentDeploymentBoost = true;
+      data.transactions.unshift({ 
+        date: new Date().toISOString(), 
+        type: 'earned', 
+        amount: 10000 - (data.balance - 10000), 
+        desc: 'Agent deployment system bonus', 
+        balance: data.balance 
+      });
+      save();
+    }
   }
 
   function save() { localStorage.setItem(STORE_KEY, JSON.stringify(data)); }
