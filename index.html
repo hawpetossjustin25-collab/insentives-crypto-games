@@ -572,6 +572,90 @@
             </div>
             <div class="gp-bot-card-status" id="pbot-grid-status">💤 Idle</div>
           </div>
+          <!-- Deploy Real Agents Section -->
+          <div class="gp-deploy-section">
+            <div class="gp-deploy-header">
+              <h4>🚀 Deploy Real Trading Agents</h4>
+              <p>Turn game bots into real crypto traders</p>
+            </div>
+            <div class="gp-deploy-cards">
+              <div class="gp-deploy-card" data-bot="scalp">
+                <div class="gp-deploy-card-header">
+                  <span class="gp-deploy-icon">⚡</span>
+                  <div class="gp-deploy-info">
+                    <div class="gp-deploy-name">Scalping Agent</div>
+                    <div class="gp-deploy-record">Game Record: <span id="scalp-wins">0</span>W / <span id="scalp-losses">0</span>L</div>
+                  </div>
+                  <div class="gp-deploy-cost">1,000 💎</div>
+                </div>
+                <div class="gp-deploy-options">
+                  <label>Deploy with:</label>
+                  <select class="gp-deploy-amount">
+                    <option value="50">$50 (1,000 💎)</option>
+                    <option value="100">$100 (1,800 💎)</option>
+                    <option value="250">$250 (4,000 💎)</option>
+                    <option value="500">$500 (7,500 💎)</option>
+                  </select>
+                </div>
+                <button class="gp-deploy-btn" onclick="deployAgent('scalp')">🚀 Deploy Agent</button>
+                <div class="gp-deploy-status" id="scalp-agent-status">Not deployed</div>
+              </div>
+              
+              <div class="gp-deploy-card" data-bot="dip">
+                <div class="gp-deploy-card-header">
+                  <span class="gp-deploy-icon">📉</span>
+                  <div class="gp-deploy-info">
+                    <div class="gp-deploy-name">Dip Buying Agent</div>
+                    <div class="gp-deploy-record">Game Record: <span id="dip-wins">0</span>W / <span id="dip-losses">0</span>L</div>
+                  </div>
+                  <div class="gp-deploy-cost">1,200 💎</div>
+                </div>
+                <div class="gp-deploy-options">
+                  <label>Deploy with:</label>
+                  <select class="gp-deploy-amount">
+                    <option value="50">$50 (1,200 💎)</option>
+                    <option value="100">$100 (2,000 💎)</option>
+                    <option value="250">$250 (4,500 💎)</option>
+                    <option value="500">$500 (8,000 💎)</option>
+                  </select>
+                </div>
+                <button class="gp-deploy-btn" onclick="deployAgent('dip')">🚀 Deploy Agent</button>
+                <div class="gp-deploy-status" id="dip-agent-status">Not deployed</div>
+              </div>
+              
+              <div class="gp-deploy-card" data-bot="grid">
+                <div class="gp-deploy-card-header">
+                  <span class="gp-deploy-icon">📊</span>
+                  <div class="gp-deploy-info">
+                    <div class="gp-deploy-name">Grid Trading Agent</div>
+                    <div class="gp-deploy-record">Game Record: <span id="grid-wins">0</span>W / <span id="grid-losses">0</span>L</div>
+                  </div>
+                  <div class="gp-deploy-cost">1,500 💎</div>
+                </div>
+                <div class="gp-deploy-options">
+                  <label>Deploy with:</label>
+                  <select class="gp-deploy-amount">
+                    <option value="50">$50 (1,500 💎)</option>
+                    <option value="100">$100 (2,500 💎)</option>
+                    <option value="250">$250 (5,000 💎)</option>
+                    <option value="500">$500 (9,000 💎)</option>
+                  </select>
+                </div>
+                <button class="gp-deploy-btn" onclick="deployAgent('grid')">🚀 Deploy Agent</button>
+                <div class="gp-deploy-status" id="grid-agent-status">Not deployed</div>
+              </div>
+            </div>
+            <div class="gp-deploy-info-box">
+              <h5>💡 How it works:</h5>
+              <ul>
+                <li>Deploy agents with real crypto funds</li>
+                <li>Agents trade on Solana DEXs automatically</li>
+                <li>Monitor performance in real-time</li>
+                <li>Withdraw profits anytime</li>
+                <li>Better game performance = higher success rates</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
       <!-- Portfolio Tab -->
