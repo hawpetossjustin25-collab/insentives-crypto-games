@@ -1056,6 +1056,58 @@ body.theme-light .h-tab.active{color:#1a1a2e}
 .gp-bot-toggle input:checked+.gp-bot-toggle-slider{background:var(--green);border-color:var(--green)}
 .gp-bot-toggle input:checked+.gp-bot-toggle-slider::before{transform:translateX(16px)}
 
+/* === DEPLOY AGENTS SECTION === */
+.gp-deploy-section{
+  margin-top:16px;padding-top:16px;border-top:1px solid var(--border);
+}
+.gp-deploy-header{margin-bottom:12px;text-align:center}
+.gp-deploy-header h4{font-size:14px;color:var(--text);margin-bottom:4px}
+.gp-deploy-header p{font-size:11px;color:var(--muted)}
+.gp-deploy-cards{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.gp-deploy-card{
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:12px;transition:all .2s;position:relative;
+}
+.gp-deploy-card[data-deployed="true"]{border-color:var(--green);background:rgba(0,200,83,.05)}
+.gp-deploy-card-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.gp-deploy-icon{font-size:18px}
+.gp-deploy-info{flex:1}
+.gp-deploy-name{font-size:12px;font-weight:700;color:var(--text)}
+.gp-deploy-record{font-size:10px;color:var(--muted)}
+.gp-deploy-cost{
+  font-size:11px;font-weight:700;color:var(--accent);
+  background:rgba(91,110,234,.1);padding:4px 8px;border-radius:8px;
+}
+.gp-deploy-options{margin-bottom:10px}
+.gp-deploy-options label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px}
+.gp-deploy-amount{
+  width:100%;padding:6px 8px;background:var(--bg);border:1px solid var(--border);
+  color:var(--text);border-radius:6px;font-size:11px;
+}
+.gp-deploy-btn{
+  width:100%;padding:8px 12px;background:var(--accent);color:#fff;
+  border:none;border-radius:8px;font-size:11px;font-weight:600;
+  cursor:pointer;transition:all .2s;
+}
+.gp-deploy-btn:hover{background:rgba(91,110,234,.8);transform:translateY(-1px)}
+.gp-deploy-btn:disabled{
+  background:var(--muted);cursor:not-allowed;transform:none;
+}
+.gp-deploy-status{
+  font-size:10px;font-weight:600;color:var(--muted);text-align:center;margin-top:8px;
+}
+.gp-deploy-status.status-active{color:var(--green)}
+.gp-deploy-status.status-profit{color:var(--green)}
+.gp-deploy-status.status-loss{color:var(--red)}
+.gp-deploy-info-box{
+  background:var(--bg2);border:1px solid var(--border);border-radius:8px;
+  padding:10px;font-size:10px;color:var(--muted);
+}
+.gp-deploy-info-box h5{color:var(--text);margin-bottom:6px;font-size:11px}
+.gp-deploy-info-box ul{list-style:none;padding-left:0}
+.gp-deploy-info-box li{margin-bottom:3px;position:relative;padding-left:12px}
+.gp-deploy-info-box li:before{content:"•";color:var(--accent);position:absolute;left:0}
+
 /* === PORTFOLIO TAB === */
 .gp-portfolio{padding:8px 12px}
 .gp-portfolio-summary{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
